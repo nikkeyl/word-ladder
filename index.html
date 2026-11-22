@@ -568,7 +568,6 @@
       font-family: var(--slab);
       opacity: 0;
       transform: translateY(.375rem);
-      transition-property: opacity, transform;
     }
     .rules-dialog[open] {
       display: grid;
@@ -579,13 +578,9 @@
     .rules-dialog::backdrop {
       background: #202b5799;
       opacity: 0;
-      transition-property: opacity;
+      transition: opacity var(--motion-duration) var(--motion-easing);
     }
     .rules-dialog[data-visible]::backdrop { opacity: 1; }
-    .rules-dialog, .rules-dialog::backdrop {
-      transition-duration: var(--motion-duration);
-      transition-timing-function: var(--motion-easing);
-    }
     .rules-header {
       display: grid;
       grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
@@ -1673,25 +1668,45 @@ Princeton University and LICENSEE agrees to preserve same.
     const boardLabels = [...raceProgress.children];
     const rulesDialog = document.getElementById('rules');
 
+    const closedRulesStyle = { opacity: 0, transform: 'translateY(.375rem)' };
+    const rulesMotionOptions = () => {
+      const style = getComputedStyle(rulesDialog);
+      const duration = style.getPropertyValue('--motion-duration').trim();
+
+      return {
+        duration: parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000),
+        easing: style.getPropertyValue('--motion-easing').trim(),
+      };
+    };
+
+    let rulesOpening;
+
     document.getElementById('open-rules').addEventListener('click', () => {
       rulesDialog.showModal();
-      // Resolve the initial styles while both layers are still transparent.
+      // Resolve the backdrop style while it is still transparent.
       void getComputedStyle(rulesDialog, '::backdrop').opacity;
       rulesDialog.dataset.visible = '';
+      const options = rulesMotionOptions();
+      rulesOpening = options.duration
+        ? rulesDialog.animate([closedRulesStyle, { opacity: 1, transform: 'none' }], options)
+        : null;
     });
 
-    const closeRules = () => {
+    const closeRules = async () => {
       if (!Object.hasOwn(rulesDialog.dataset, 'visible')) return;
 
+      const style = getComputedStyle(rulesDialog);
+      const current = { opacity: Number(style.opacity), transform: style.transform };
+      const options = rulesMotionOptions();
+      rulesOpening?.cancel();
       delete rulesDialog.dataset.visible;
-      const duration = getComputedStyle(rulesDialog).transitionDuration;
-      const milliseconds = parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
 
-      if (milliseconds > 0) {
-        setTimeout(() => rulesDialog.close(), milliseconds);
-      } else {
-        rulesDialog.close();
+      if (options.duration) {
+        const closing = rulesDialog.animate([current, closedRulesStyle], options);
+        await closing.finished.catch(() => {});
       }
+
+      rulesDialog.close();
     };
 
     for (const eventName of ['submit', 'cancel']) {
