@@ -510,6 +510,17 @@
       font-family: system-ui, sans-serif;
     }
     ::selection { background: var(--red-ink); color: #fff; }
+    :root { scrollbar-color: var(--control-fill) var(--paper); }
+    * { scrollbar-width: thin; }
+    .rules-content { scrollbar-color: var(--stock) var(--blue-dark); }
+    @supports not (scrollbar-width: thin) {
+      ::-webkit-scrollbar { width: .5rem; height: .5rem; }
+      ::-webkit-scrollbar-track { background: var(--paper); }
+      ::-webkit-scrollbar-thumb { background: var(--control-fill); border-radius: .5rem; }
+      .rules-content::-webkit-scrollbar-track { background: var(--blue-dark); }
+      .rules-content::-webkit-scrollbar-thumb { background: var(--stock); }
+    }
+    html:has(.rules-dialog[open]) { overflow: hidden; overscroll-behavior: none; }
     :focus-visible { outline: 2px solid #384b9a; outline-offset: 4px; }
     [hidden] { display: none !important; }
     .shell {
@@ -538,6 +549,58 @@
     }
     .board :focus-visible, .setup :focus-visible { outline-color: var(--red); }
     .section-title { font-family: var(--slab); font-weight: 800; }
+    .rules-link {
+      justify-self: center;
+      min-height: 2.75rem;
+      padding: .5rem 1.25rem;
+      border-radius: .5rem;
+      background: var(--blue);
+      color: var(--stock);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .rules-link:hover { background: var(--blue-dark); }
+    .rules-dialog {
+      width: min(38rem, calc(100% - 2rem));
+      max-height: calc(100dvh - 2rem);
+      margin: auto;
+      overflow: hidden;
+      font-family: var(--slab);
+    }
+    .rules-dialog[open] {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: .75rem;
+    }
+    .rules-dialog::backdrop { background: #202b5799; }
+    .rules-header {
+      display: grid;
+      grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+      align-items: start;
+    }
+    .rules-header h2 { grid-column: 2; }
+    .rules-close {
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: .35rem;
+      background: var(--control-fill);
+      color: var(--stock);
+      cursor: pointer;
+    }
+    .rules-close:hover { background: var(--control-hover); }
+    .rules-content {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-inline-end: .5rem;
+    }
+    .rules-list {
+      list-style: disc;
+      padding-inline-start: 1.25rem;
+      display: grid;
+      gap: .75rem;
+    }
     .setup .label { color: #e2e8ff; }
     .tiles {
       grid-template-columns: repeat(auto-fit, minmax(min(3rem, 100%), 1fr));
@@ -751,7 +814,7 @@
     .start-button:disabled, .board-action:disabled { opacity: .65; }
 
     .tile, .control, .setup-field, .start-button, .select-option,
-    .board-action, .invite-copy, .notice {
+    .board-action, .invite-copy, .notice, .rules-link, .rules-close {
       transition-property: background-color, color, opacity, transform;
       transition-duration: var(--motion-duration);
       transition-timing-function: var(--motion-easing);
@@ -927,7 +990,34 @@
         Новая игра
       </button>
     </section>
+    <button id="open-rules" class="rules-link section-title" type="button"
+      aria-haspopup="dialog" data-i18n="rulesTitle">Правила игры</button>
   </main>
+  <dialog id="rules" class="rules-dialog board" aria-labelledby="rules-heading">
+    <header class="rules-header">
+      <h2 id="rules-heading" class="section-title text-center text-2xl"
+        data-i18n="rulesTitle">Правила игры</h2>
+      <form method="dialog">
+        <button class="rules-close" type="submit" autofocus
+          data-i18n-label="rulesClose" aria-label="Закрыть">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="m6 6 12 12M18 6 6 18"/>
+          </svg>
+        </button>
+      </form>
+    </header>
+    <div class="rules-content" tabindex="0" role="region" aria-labelledby="rules-heading">
+      <ul class="rules-list">
+        <li data-i18n="rulesSetup"></li>
+        <li data-i18n="rulesMove"></li>
+        <li data-i18n="rulesLock"></li>
+        <li data-i18n="rulesRound"></li>
+        <li data-i18n="rulesMatch"></li>
+        <li data-i18n="rulesJapanese"></li>
+      </ul>
+    </div>
+  </dialog>
   <!-- Dictionary credits
     Russian lemmas and inflected forms: OpenCorpora, CC BY-SA 3.0.
     https://opencorpora.org/?page=downloads
@@ -1275,6 +1365,14 @@ Princeton University and LICENSEE agrees to preserve same.
     };
     const STRINGS = {
       en: {
+        rulesTitle: 'Game rules',
+        rulesClose: 'Close',
+        rulesSetup: 'Choose two different words of the same length, at least three characters each.',
+        rulesMove: 'Change one character per turn. Click a tile or use ← → to select it, then type the replacement. Intermediate words must be in the dictionary. You can use each word only once per round.',
+        rulesLock: 'A character locks as soon as it matches the target in that position.',
+        rulesRound: 'Complete the target word to win the round. If your move leaves no path to the target, your opponent wins the round.',
+        rulesMatch: 'Play the same word pair in two rounds. A different player starts round two. Win both rounds for a 2–0 victory. One win each is a 1–1 draw.',
+        rulesJapanese: 'For Japanese, choose hiragana or katakana. Type kana directly or use romaji, for example re → れ / レ.',
         settings: 'Game settings', mode: 'Game mode', duo: 'Two players', bot: 'Vs. bot',
         online: 'Play by link', language: 'Game language', script: 'Script',
         hiragana: 'Hiragana', katakana: 'Katakana', startWord: 'Starting word',
@@ -1326,6 +1424,14 @@ Princeton University and LICENSEE agrees to preserve same.
         repeated_word: 'That word has already been played.',
       },
       ja: {
+        rulesTitle: 'ゲームのルール',
+        rulesClose: '閉じる',
+        rulesSetup: '同じ長さで3文字以上の、異なる単語を2つ選びます。',
+        rulesMove: '1回の手番で1文字だけ入れ替えます。タイルを押すか、← →キーで選んでから、新しい文字を入力します。途中の単語は辞書にあるものに限ります。同じラウンドで同じ単語は使えません。',
+        rulesLock: 'ゴールの単語と同じ位置に同じ文字がそろうと、そのタイルは固定されます。',
+        rulesRound: 'ゴールの単語を完成させた人がラウンドの勝者です。自分の手でゴールまでたどり着けなくなった場合は、相手の勝ちです。',
+        rulesMatch: '同じ単語の組み合わせで2ラウンド対戦します。第2ラウンドでは先攻と後攻が交代します。2勝で2対0の勝利、1勝ずつなら1対1の引き分けです。',
+        rulesJapanese: '日本語では、ひらがなかカタカナを選びます。仮名を直接入力することも、ローマ字で入力することもできます。例：re → れ / レ。',
         settings: 'ゲーム設定', mode: '対戦モード', duo: '2人で対戦', bot: 'ボットと対戦',
         online: 'リンクで対戦', language: 'ゲームの言語', script: '文字種',
         hiragana: 'ひらがな', katakana: 'カタカナ', startWord: '最初の単語',
@@ -1377,6 +1483,14 @@ Princeton University and LICENSEE agrees to preserve same.
         repeated_word: 'その単語はすでに使われています。',
       },
       ru: {
+        rulesTitle: 'Правила игры',
+        rulesClose: 'Закрыть',
+        rulesSetup: 'Выберите два разных слова одинаковой длины, от трёх знаков.',
+        rulesMove: 'За ход замените один знак. Выберите плитку нажатием или стрелками ← → и введите новый знак. Промежуточное слово должно быть в словаре. Повторять слова в одном раунде нельзя.',
+        rulesLock: 'Знак, который совпадает с целью на своей позиции, сразу блокируется.',
+        rulesRound: 'Раунд выигрывает тот, кто собирает конечное слово. Если после вашего хода до цели больше нет пути, раунд выигрывает соперник.',
+        rulesMatch: 'В партии два раунда с одной парой слов. Во втором раунде первым ходит другой игрок. Две победы дают счёт 2:0. По одной победе — ничья 1:1.',
+        rulesJapanese: 'В японском выберите хирагану или катакану. Можно вводить знаки напрямую или печатать ромадзи, например re → れ / レ.',
         settings: 'Настройка партии', mode: 'Режим игры', duo: 'Вдвоём', bot: 'Против бота',
         online: 'По ссылке', language: 'Язык игры', script: 'Азбука',
         hiragana: 'Хирагана', katakana: 'Катакана', startWord: 'Начальное слово',
@@ -1491,6 +1605,28 @@ Princeton University and LICENSEE agrees to preserve same.
     const turn = document.getElementById('turn');
     const notice = document.getElementById('notice');
     const matchScore = document.getElementById('match-score');
+    const rulesDialog = document.getElementById('rules');
+
+    document.getElementById('open-rules').addEventListener('click', () => {
+      rulesDialog.showModal();
+    });
+
+    const isRulesBackdrop = (event) => {
+      if (event.target !== rulesDialog) return false;
+
+      const { left, top, right, bottom } = rulesDialog.getBoundingClientRect();
+      return event.clientX < left || event.clientX > right
+        || event.clientY < top || event.clientY > bottom;
+    };
+
+    let pressedRulesBackdrop = false;
+    rulesDialog.addEventListener('pointerdown', (event) => {
+      pressedRulesBackdrop = isRulesBackdrop(event);
+    });
+    rulesDialog.addEventListener('click', (event) => {
+      if (pressedRulesBackdrop && isRulesBackdrop(event)) rulesDialog.close();
+      pressedRulesBackdrop = false;
+    });
 
     let round;
     let tileButtons = [];
