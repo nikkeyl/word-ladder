@@ -566,13 +566,26 @@
       margin: auto;
       overflow: hidden;
       font-family: var(--slab);
+      opacity: 0;
+      transform: translateY(.375rem);
+      transition-property: opacity, transform;
     }
     .rules-dialog[open] {
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       gap: .75rem;
     }
-    .rules-dialog::backdrop { background: #202b5799; }
+    .rules-dialog[data-visible] { opacity: 1; transform: translateY(0); }
+    .rules-dialog::backdrop {
+      background: #202b5799;
+      opacity: 0;
+      transition-property: opacity;
+    }
+    .rules-dialog[data-visible]::backdrop { opacity: 1; }
+    .rules-dialog, .rules-dialog::backdrop {
+      transition-duration: var(--motion-duration);
+      transition-timing-function: var(--motion-easing);
+    }
     .rules-header {
       display: grid;
       grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
@@ -1662,7 +1675,31 @@ Princeton University and LICENSEE agrees to preserve same.
 
     document.getElementById('open-rules').addEventListener('click', () => {
       rulesDialog.showModal();
+      // Resolve the initial styles while both layers are still transparent.
+      void getComputedStyle(rulesDialog, '::backdrop').opacity;
+      rulesDialog.dataset.visible = '';
     });
+
+    const closeRules = () => {
+      if (!Object.hasOwn(rulesDialog.dataset, 'visible')) return;
+
+      delete rulesDialog.dataset.visible;
+      const duration = getComputedStyle(rulesDialog).transitionDuration;
+      const milliseconds = parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
+
+      if (milliseconds > 0) {
+        setTimeout(() => rulesDialog.close(), milliseconds);
+      } else {
+        rulesDialog.close();
+      }
+    };
+
+    for (const eventName of ['submit', 'cancel']) {
+      rulesDialog.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        closeRules();
+      });
+    }
 
     const isRulesBackdrop = (event) => {
       if (event.target !== rulesDialog) return false;
@@ -1677,7 +1714,7 @@ Princeton University and LICENSEE agrees to preserve same.
       pressedRulesBackdrop = isRulesBackdrop(event);
     });
     rulesDialog.addEventListener('click', (event) => {
-      if (pressedRulesBackdrop && isRulesBackdrop(event)) rulesDialog.close();
+      if (pressedRulesBackdrop && isRulesBackdrop(event)) closeRules();
       pressedRulesBackdrop = false;
     });
 
@@ -1688,7 +1725,7 @@ Princeton University and LICENSEE agrees to preserve same.
     let localWinner;
     let mode;
     let botDetoured;
-    let botTimer;
+    let moveTimer;
     let selected = null;
 
     const bindSelect = (field) => {
@@ -1916,16 +1953,17 @@ Princeton University and LICENSEE agrees to preserve same.
       paintBoard(word, changed, canPlay);
     };
 
-    const render = () => {
+    const render = (previewSeat = null) => {
       const finished = localTurn === null;
       const botPlaying = !finished && isBotTurn();
-      const activeRow = mode === 'bot' ? 0 : localTurn ?? localWinner ?? 0;
+      const activeRow = mode === 'bot' ? 0 : previewSeat ?? localTurn ?? localWinner ?? 0;
       const boards = localBoards.map((board) => ({ ...board, moves: board.used.size - 1 }));
-      renderRace(boards, [getPlayer(0), getPlayer(1)], activeRow, !finished && !botPlaying);
+      const canPlay = !finished && !botPlaying && previewSeat === null;
+      renderRace(boards, [getPlayer(0), getPlayer(1)], activeRow, canPlay);
       turn.textContent = '';
       onlineTurn.hidden = finished || mode !== 'duo';
       if (!onlineTurn.hidden) {
-        onlineTurn.textContent = t('theirTurn', { name: getPlayer() });
+        onlineTurn.textContent = t('theirTurn', { name: getPlayer(activeRow) });
         onlineTurn.dataset.ownTurn = 'false';
       }
 
@@ -1941,8 +1979,20 @@ Princeton University and LICENSEE agrees to preserve same.
       }
     };
 
+    const focusAfterMove = (changed) => {
+      if (rulesDialog.open || document.activeElement !== document.body) return;
+
+      const previousTile = tileButtons[changed];
+      const availableTile = previousTile && !previousTile.disabled
+        ? previousTile
+        : tileButtons.find((tile) => !tile.disabled);
+      const focusTarget = input.disabled ? restart : availableTile;
+      focusTarget?.focus();
+    };
+
     const play = (word, changed) => {
-      const board = localBoards[localTurn];
+      const seat = localTurn;
+      const board = localBoards[seat];
       board.word = word;
       board.changed = changed;
       board.used.add(word);
@@ -1954,14 +2004,27 @@ Princeton University and LICENSEE agrees to preserve same.
         if (!board.next) board.status = 'blocked';
       }
 
-      const result = advanceRace(localBoards, localTurn);
+      const result = advanceRace(localBoards, seat);
       localTurn = result.turn;
       localWinner = result.winner;
       clearSelection();
-      render();
 
+      if (mode === 'duo' && localTurn !== seat) {
+        render(seat);
+        if (localTurn !== null) {
+          moveTimer = setTimeout(() => {
+            render();
+            focusAfterMove(changed);
+          }, 520);
+        } else {
+          focusAfterMove(changed);
+        }
+        return;
+      }
+
+      render();
       if (isBotTurn()) {
-        botTimer = setTimeout(() => {
+        moveTimer = setTimeout(() => {
           const bot = localBoards[1];
           const changedByBot = [...bot.word].findIndex((letter, index) => {
             return letter !== bot.next[index];
@@ -1982,18 +2045,13 @@ Princeton University and LICENSEE agrees to preserve same.
 
           play(move, changedByBot);
         }, 520);
-      } else if (!rulesDialog.open && document.activeElement === document.body) {
-        const previousTile = tileButtons[changed];
-        const availableTile = previousTile && !previousTile.disabled
-          ? previousTile
-          : tileButtons.find((tile) => !tile.disabled);
-        const focusTarget = input.disabled ? restart : availableTile;
-        focusTarget?.focus();
+      } else {
+        focusAfterMove(changed);
       }
     };
 
     const reset = (firstStep) => {
-      clearTimeout(botTimer);
+      clearTimeout(moveTimer);
       clearSelection();
       mode = document.querySelector('[name="mode"]:checked').value;
       localBoards = [0, 1].map(() => ({
@@ -2658,7 +2716,7 @@ Princeton University and LICENSEE agrees to preserve same.
         clearTimeout(session.retry);
         session.socket?.close();
       }
-      clearTimeout(botTimer);
+      clearTimeout(moveTimer);
       clearSelection();
       if (!keepInvite && inviteId !== null) setInvite(null);
       guestToken = null;
