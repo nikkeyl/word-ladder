@@ -26,6 +26,10 @@ Use Python with `pymorphy3==2.0.6` and `pymorphy3-dicts-ru==2.4.417150.4580142`.
 Download the `JMdict.gz` XML archive from EDRDG. Run
 `python tools/update-dictionaries.py /path/to/JMdict.gz` from the repository.
 The tool loads the versioned English list from jsDelivr and accepts a local
-copy via `--english-file`. It retains existing entries and writes the same
-normalized word sets to `index.html` and `server/dictionaries.mjs`. Deploy
-both generated artifacts together.
+copy via `--english-file`. It retains existing entries and updates the server
+word sets in `server/dictionaries.mjs`. The versioned files in `dictionaries/`
+and the offline download use those same sets. Deploy the server and browser
+artifacts together.
+
+After editing `index.html`, run `python tools/browser_dictionaries.py` to
+refresh the offline download and confirm that its word lists match the server.

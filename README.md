@@ -5,7 +5,8 @@
 A word puzzle in English, Russian, and Japanese. Turn one word into another
 by changing one character at a time. This project was made with AI.
 
-[Play Word Ladder](https://nikkeyl.github.io/word-ladder/)
+[Play Word Ladder](https://nikkeyl.github.io/word-ladder/) ·
+[Download for offline play](https://nikkeyl.github.io/word-ladder/word-ladder-offline.zip)
 
 ## How to play
 
@@ -15,7 +16,8 @@ by changing one character at a time. This project was made with AI.
 3. Take turns. The player who completes the target word wins.
 
 Play together on one device, against the bot, or online. Choose **Play by link**
-to invite a friend. You can also open `index.html` in your browser for local play.
+to invite a friend. To play offline, unzip the download and open `word-ladder.html`
+in your browser.
 
 In Japanese, choose hiragana or katakana and type directly in kana or use romaji.
 
