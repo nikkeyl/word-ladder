@@ -6,7 +6,6 @@ import { DatabaseSync } from 'node:sqlite';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import {
-  buildPatterns,
   findNextStep,
   GAME_UUID,
   MAX_NAME_LENGTH,
@@ -15,7 +14,7 @@ import {
   WORD_PATTERNS,
   WS_PROTOCOL,
 } from './game-rules.mjs';
-import { DICTIONARIES } from './dictionaries.mjs';
+import { dictionaryFor } from './dictionary-lookup.mjs';
 
 const ROOM_TTL = 24 * 60 * 60 * 1000;
 const MAX_BODY = 2048;
@@ -124,7 +123,6 @@ const roomFor = (id) => {
 class GameRoom {
   constructor(id) {
     this.id = id;
-    this.lexicon = null;
     this.sockets = new Set();
   }
 
@@ -135,17 +133,6 @@ class GameRoom {
 
   save(game) {
     saveGame.run(this.id, JSON.stringify(game), game.expiresAt);
-  }
-
-  getLexicon({ goal, language, start }) {
-    if (!this.lexicon) {
-      const data = DICTIONARIES[language][start.length] ?? '';
-      const words = new Set(data ? data.split('\n') : []);
-      words.add(start);
-      words.add(goal);
-      this.lexicon = { patterns: buildPatterns(words), words };
-    }
-    return this.lexicon;
   }
 
   session(game, seat, status = 200) {
@@ -183,9 +170,8 @@ class GameRoom {
 
       const { goal, language, script, start } = body.config;
       const config = { goal, language, script, start };
-      const { patterns } = this.getLexicon(config);
+      const { patterns } = dictionaryFor(config);
       if (!findNextStep(start, goal, patterns, [])) {
-        this.lexicon = null;
         return error('no_path', 422);
       }
 
@@ -314,8 +300,8 @@ class GameRoom {
     if (game.word[position] === goal[position]) return reject('locked_tile');
 
     const word = game.word.slice(0, position) + letter + game.word.slice(position + 1);
-    const { patterns, words } = this.getLexicon(game.config);
-    if (!words.has(word)) return reject('unknown_word');
+    const { hasWord, patterns } = dictionaryFor(game.config);
+    if (!hasWord(word)) return reject('unknown_word');
     if (game.used.includes(word)) return reject('repeated_word');
 
     game.word = word;
