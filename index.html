@@ -527,6 +527,9 @@
       margin-inline: auto;
     }
     .tile {
+      --tile-depth: .25rem;
+      --tile-edge: #bba786;
+      --tile-light: #ffffffa8;
       display: grid;
       place-items: center;
       position: relative;
@@ -534,6 +537,8 @@
       background: var(--stock);
       color: var(--ink);
       border-radius: .3rem;
+      box-shadow: inset 0 1px 0 var(--tile-light),
+        0 var(--tile-depth) 0 var(--tile-edge), 0 .48rem .65rem -.17rem #101831a6;
       font-family: var(--slab);
       font-weight: 850;
       line-height: 1;
@@ -541,8 +546,13 @@
       aspect-ratio: 1.09;
     }
     .tile span { font-size: clamp(1.35rem, 53cqi, 4.7rem); }
-    .tile.changed { background: #f9dfd0; }
+    .tile.changed {
+      --tile-edge: #bd8c74;
+      background: #f9dfd0;
+    }
     .tile.locked {
+      --tile-edge: #151d3b;
+      --tile-light: #8495cb61;
       background: var(--ink);
       color: var(--stock);
     }
@@ -558,11 +568,18 @@
     }
     .tile:enabled { cursor: pointer; }
     .tile:hover:enabled[aria-pressed="false"] { background: #fff1de; }
-    .tile:enabled:active { transform: translateY(.12rem); }
+    .tile:enabled:active {
+      --tile-depth: .12rem;
+      transform: translateY(.13rem);
+    }
     .tile[aria-pressed="true"] {
+      --tile-edge: #b95e46;
       background: var(--red);
     }
-    .target-glyph { background: var(--goal-fill); }
+    .target-glyph {
+      --tile-edge: #809c66;
+      background: var(--goal-fill);
+    }
     .label { font-size: .8125rem; font-weight: 700; }
     .letter-input {
       position: absolute;
@@ -688,22 +705,40 @@
       background: var(--control-fill);
     }
     .board-action:hover:enabled { background: var(--control-hover); }
-    .unavailable-game { max-inline-size: 22rem; }
+    .unavailable-game {
+      inline-size: 100%;
+      max-inline-size: 22rem;
+      justify-self: center;
+    }
     .online-status {
       min-height: 1.75rem;
       color: #e2e8ff;
       overflow-wrap: anywhere;
     }
     .online-status[data-own-turn="true"] { color: var(--goal-fill); }
-    .invite-tools { grid-template-columns: minmax(0, 1fr) auto; }
+    .invite-tools { position: relative; }
+    .invite-field { padding-inline-end: 3rem; }
+    .invite-copy {
+      position: absolute;
+      inset: 0 .2rem 0 auto;
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      min-height: 2.75rem;
+      border-radius: .3rem;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .invite-copy:hover { background: #202b5710; }
     .start-button:disabled, .board-action:disabled { opacity: .65; }
 
     .tile, .control, .setup-field, .start-button, .select-option,
-    .board-action, .notice {
+    .board-action, .invite-copy, .notice {
       transition-property: background-color, color, opacity, transform;
       transition-duration: var(--motion-duration);
       transition-timing-function: var(--motion-easing);
     }
+    .tile { transition-property: background-color, color, opacity, transform, box-shadow; }
     .setup-select::after {
       transition: transform var(--motion-duration) var(--motion-easing);
     }
@@ -854,10 +889,17 @@
       <p id="notice" class="notice text-center text-sm" aria-live="polite"></p>
       <div id="invite-panel" class="mb-3" hidden>
         <label for="invite-link" data-i18n="invite" class="label mb-1 block">Ссылка для приглашения</label>
-        <div class="invite-tools grid gap-2">
-          <input id="invite-link" class="setup-field min-w-0" type="text" readonly>
-          <button id="copy-invite" data-i18n="copy" class="board-action text-sm font-semibold"
-            type="button">Скопировать ссылку</button>
+        <div class="invite-tools">
+          <input id="invite-link" class="setup-field invite-field" type="text" readonly>
+          <button id="copy-invite" data-i18n-label="copy" class="invite-copy"
+            type="button" aria-label="Скопировать ссылку">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round">
+              <rect x="8" y="8" width="12" height="12" rx="2"/>
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
+            </svg>
+          </button>
         </div>
       </div>
       <button id="restart" data-i18n="newGame" class="board-action mt-2 w-full text-sm font-semibold"
@@ -285692,10 +285734,15 @@ Princeton University and LICENSEE agrees to preserve same.
         if (notify) field.dispatchEvent(new Event('change', { bubbles: true }));
       };
 
-      trigger.addEventListener('click', () => {
+      trigger.addEventListener('pointerdown', (event) => {
+        if (expanded) event.preventDefault();
+      });
+      trigger.addEventListener('click', (event) => {
         if (!expanded) {
           trigger.focus();
           open();
+        } else if (event.detail === 0) {
+          choose(active);
         } else {
           close();
         }
@@ -285722,10 +285769,6 @@ Princeton University and LICENSEE agrees to preserve same.
         if (key === 'Escape' && expanded) {
           event.preventDefault();
           close();
-        } else if (key === 'Enter' || key === ' ') {
-          event.preventDefault();
-          if (!expanded) open();
-          else choose(active);
         } else if (key === 'ArrowDown' || key === 'ArrowUp') {
           event.preventDefault();
           if (!expanded) open();
