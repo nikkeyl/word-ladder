@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import {
+  advanceRace,
   findNextStep,
   GAME_UUID,
   MAX_NAME_LENGTH,
@@ -73,8 +74,22 @@ const playerName = (value) => {
   return name.length <= MAX_NAME_LENGTH && !/[\x00-\x1f\x7f]/.test(name) ? name : '';
 };
 
-const publicState = (game) => ({
-  changed: game.changed,
+const newRaceBoards = (start) => [0, 1].map(() => ({
+  changed: -1, status: 'playing', used: [start], word: start,
+}));
+
+const publicState = (game, seat) => ({
+  boards: game.boards?.map((board, index) => {
+    const visible = index === seat || game.phase === 'finished' || board.used.length === 1;
+
+    return {
+      changed: visible ? board.changed : -1,
+      moves: board.used.length - 1,
+      status: board.status,
+      word: visible ? board.word : null,
+    };
+  }),
+  changed: game.boards?.[seat].changed ?? game.changed,
   config: game.config,
   phase: game.phase,
   players: game.players.map((player) => player.name),
@@ -82,7 +97,7 @@ const publicState = (game) => ({
   roundWinners: game.roundWinners,
   turn: game.turn,
   winner: game.winner,
-  word: game.word,
+  word: game.boards?.[seat].word ?? game.word,
 });
 
 const databasePath = process.env.DATABASE_PATH ?? './data/games.sqlite';
@@ -137,13 +152,14 @@ class GameRoom {
   }
 
   session(game, seat, status = 200) {
-    return json({ seat, state: publicState(game) }, status);
+    return json({ seat, state: publicState(game, seat) }, status);
   }
 
   broadcast(game) {
-    const payload = JSON.stringify({ state: publicState(game), type: 'state' });
     for (const socket of this.sockets) {
-      if (socket.readyState === WebSocket.OPEN) socket.send(payload);
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ state: publicState(game, socket.seat), type: 'state' }));
+      }
     }
   }
 
@@ -177,6 +193,7 @@ class GameRoom {
       }
 
       const fresh = {
+        boards: body.race === true ? newRaceBoards(start) : undefined,
         changed: -1,
         config,
         expiresAt: Date.now() + ROOM_TTL,
@@ -215,6 +232,10 @@ class GameRoom {
       if (game.phase !== 'playing') return error('game_ended', 409);
 
       game.players.pop();
+      if (game.boards) {
+        game.boards = newRaceBoards(game.config.start);
+        game.turn = 0;
+      }
       game.phase = 'waiting';
       game.revision += 1;
       this.save(game);
@@ -259,14 +280,14 @@ class GameRoom {
       }
     });
     this.sockets.add(socket);
-    socket.send(JSON.stringify({ state: publicState(game), type: 'state' }));
+    socket.send(JSON.stringify({ state: publicState(game, seat), type: 'state' }));
   }
 
   webSocketMessage(socket, message) {
     if (!this.sockets.has(socket)) return;
 
     const reject = (code, game) => {
-      const state = game ? publicState(game) : undefined;
+      const state = game ? publicState(game, socket.seat) : undefined;
       socket.send(JSON.stringify({ code, state, type: 'error' }));
     };
     const game = this.getGame();
@@ -294,35 +315,42 @@ class GameRoom {
 
     const { letter, position } = move;
     const { goal, language } = game.config;
-    if (!Number.isInteger(position) || position < 0 || position >= game.word.length
+    const board = game.boards?.[seat] ?? game;
+    if (!Number.isInteger(position) || position < 0 || position >= board.word.length
       || typeof letter !== 'string' || letter.length !== 1
-      || !WORD_PATTERNS[language].test(letter) || letter === game.word[position]) {
+      || !WORD_PATTERNS[language].test(letter) || letter === board.word[position]) {
       return reject('invalid_move');
     }
-    if (game.word[position] === goal[position]) return reject('locked_tile');
+    if (board.word[position] === goal[position]) return reject('locked_tile');
 
-    const word = game.word.slice(0, position) + letter + game.word.slice(position + 1);
+    const word = board.word.slice(0, position) + letter + board.word.slice(position + 1);
     const { hasWord, patterns } = dictionaryFor(game.config);
     if (!hasWord(word)) return reject('unknown_word');
-    if (game.used.includes(word)) return reject('repeated_word');
+    if (board.used.includes(word)) return reject('repeated_word');
 
-    game.word = word;
-    game.changed = position;
-    game.used.push(word);
+    board.word = word;
+    board.changed = position;
+    board.used.push(word);
     game.revision += 1;
     const reachedGoal = word === goal;
-    const canContinue = !reachedGoal && findNextStep(word, goal, patterns, game.used);
+    const canContinue = !reachedGoal && findNextStep(word, goal, patterns, board.used);
 
-    if (canContinue) {
+    if (game.boards) {
+      board.status = reachedGoal ? 'solved' : canContinue ? 'playing' : 'blocked';
+      const { turn, winner } = advanceRace(game.boards, seat);
+      game.turn = turn;
+      game.winner = winner;
+      if (turn === null) game.phase = 'finished';
+    } else if (canContinue) {
       game.turn = 1 - game.turn;
     } else if (game.roundWinners) {
       game.roundWinners.push(reachedGoal ? seat : 1 - seat);
 
       if (game.roundWinners.length === 1) {
         const { start } = game.config;
-        game.word = start;
+        board.word = start;
         game.changed = -1;
-        game.used = [start];
+        board.used = [start];
         game.turn = 1;
       } else {
         const [first, second] = game.roundWinners;

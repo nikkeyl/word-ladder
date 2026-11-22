@@ -797,6 +797,14 @@
       overflow-wrap: anywhere;
     }
     .online-status[data-own-turn="true"] { color: var(--goal-fill); }
+    .race-progress {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      column-gap: 1rem;
+      row-gap: .25rem;
+      overflow-wrap: anywhere;
+    }
     .invite-tools { position: relative; }
     .invite-field { padding-inline-end: 3rem; }
     .invite-copy {
@@ -961,6 +969,10 @@
       <p id="turn" class="sr-only" role="status"></p>
       <p id="online-turn" class="online-status mb-2 text-center text-sm font-bold"
         role="status" hidden></p>
+      <div id="race-progress" class="race-progress mb-3" hidden>
+        <p class="online-status text-sm font-bold"></p>
+        <p class="online-status text-sm font-bold"></p>
+      </div>
       <div id="tiles" class="tiles grid gap-2 sm:gap-3" role="group"></div>
       <h2 data-i18n="goal" class="section-title my-3 text-center text-lg">Цель</h2>
       <div id="target" class="tiles mb-5 grid gap-2 sm:gap-3" role="img">
@@ -1363,15 +1375,41 @@ Princeton University and LICENSEE agrees to preserve same.
 
       return null;
     };
+    const advanceRace = (boards, seat) => {
+      const opponent = 1 - seat;
+      const moves = (board) => (board.used.size ?? board.used.length) - 1;
+      const firstFinisher = boards.find((board) => board.status === 'solved');
+      const limit = firstFinisher ? moves(firstFinisher) : Infinity;
+
+      for (const board of boards) {
+        if (board.status === 'playing' && moves(board) >= limit) board.status = 'limit';
+      }
+
+      if (boards[opponent].status === 'playing') return { turn: opponent, winner: null };
+      if (boards[seat].status === 'playing') return { turn: seat, winner: null };
+
+      const scores = boards.map((board) => board.status === 'solved' ? moves(board) : Infinity);
+
+      return {
+        turn: null,
+        winner: scores[0] === scores[1] ? null : Number(scores[1] < scores[0]),
+      };
+    };
+
     const STRINGS = {
       en: {
+        opponent: 'Opponent',
+        raceMoves: '{name} · Moves: {moves}',
+        solved: 'Solved',
+        limit: 'Move limit reached',
+        raceBlocked: 'No path to target',
         rulesTitle: 'Game rules',
         rulesClose: 'Close',
         rulesSetup: 'Choose two different words of the same length, at least three characters each.',
         rulesMove: 'Change one character per turn. Click a tile or use ← → to select it, then type the replacement. Intermediate words must be in the dictionary. You can use each word only once per round.',
         rulesLock: 'A character locks as soon as it matches the target in that position.',
-        rulesRound: 'Complete the target word to win the round. If your move leaves no path to the target, your opponent wins the round.',
-        rulesMatch: 'Play the same word pair in two rounds. A different player starts round two. Win both rounds for a 2–0 victory. One win each is a 1–1 draw.',
+        rulesRound: 'Each player builds their own chain from the same starting word. Take turns and change a tile on your own board. If your chain leads to a dead end, your board stops and the other player can continue.',
+        rulesMatch: 'The player who reaches the target in fewer moves wins. After one player finishes, the other gets the same number of moves to match that result. Equal scores, or two dead ends, are a draw.',
         rulesJapanese: 'For Japanese, choose hiragana or katakana. Type kana directly or use romaji, for example re → れ / レ.',
         settings: 'Game settings', mode: 'Game mode', duo: 'Two players', bot: 'Vs. bot',
         online: 'Play by link', language: 'Game language', script: 'Script',
@@ -1424,13 +1462,18 @@ Princeton University and LICENSEE agrees to preserve same.
         repeated_word: 'That word has already been played.',
       },
       ja: {
+        opponent: '対戦相手',
+        raceMoves: '{name} · {moves}手',
+        solved: 'ゴール達成',
+        limit: '手数の上限',
+        raceBlocked: 'ゴールへの道なし',
         rulesTitle: 'ゲームのルール',
         rulesClose: '閉じる',
         rulesSetup: '同じ長さで3文字以上の、異なる単語を2つ選びます。',
         rulesMove: '1回の手番で1文字だけ入れ替えます。タイルを押すか、← →キーで選んでから、新しい文字を入力します。途中の単語は辞書にあるものに限ります。同じラウンドで同じ単語は使えません。',
         rulesLock: 'ゴールの単語と同じ位置に同じ文字がそろうと、そのタイルは固定されます。',
-        rulesRound: 'ゴールの単語を完成させた人がラウンドの勝者です。自分の手でゴールまでたどり着けなくなった場合は、相手の勝ちです。',
-        rulesMatch: '同じ単語の組み合わせで2ラウンド対戦します。第2ラウンドでは先攻と後攻が交代します。2勝で2対0の勝利、1勝ずつなら1対1の引き分けです。',
+        rulesRound: '同じ最初の単語から、各自の盤で別々に単語をつなげます。交互に自分のタイルを変えます。ゴールまでの道がなくなった人は終了し、相手は続けられます。',
+        rulesMatch: 'より少ない手数でゴールした人が勝ちです。一方がゴールしたら、もう一方も同じ手数まで続けられます。同じ手数でゴールした場合や、両方が行き詰まった場合は引き分けです。',
         rulesJapanese: '日本語では、ひらがなかカタカナを選びます。仮名を直接入力することも、ローマ字で入力することもできます。例：re → れ / レ。',
         settings: 'ゲーム設定', mode: '対戦モード', duo: '2人で対戦', bot: 'ボットと対戦',
         online: 'リンクで対戦', language: 'ゲームの言語', script: '文字種',
@@ -1483,13 +1526,18 @@ Princeton University and LICENSEE agrees to preserve same.
         repeated_word: 'その単語はすでに使われています。',
       },
       ru: {
+        opponent: 'Соперник',
+        raceMoves: '{name} · Ходы: {moves}',
+        solved: 'Цель собрана',
+        limit: 'Лимит ходов исчерпан',
+        raceBlocked: 'Нет пути к цели',
         rulesTitle: 'Правила игры',
         rulesClose: 'Закрыть',
         rulesSetup: 'Выберите два разных слова одинаковой длины, от трёх знаков.',
         rulesMove: 'За ход замените один знак. Выберите плитку нажатием или стрелками ← → и введите новый знак. Промежуточное слово должно быть в словаре. Повторять слова в одном раунде нельзя.',
         rulesLock: 'Знак, который совпадает с целью на своей позиции, сразу блокируется.',
-        rulesRound: 'Раунд выигрывает тот, кто собирает конечное слово. Если после вашего хода до цели больше нет пути, раунд выигрывает соперник.',
-        rulesMatch: 'В партии два раунда с одной парой слов. Во втором раунде первым ходит другой игрок. Две победы дают счёт 2:0. По одной победе — ничья 1:1.',
+        rulesRound: 'У каждого своё поле с одним и тем же стартовым словом. Ходите по очереди и меняйте буквы только на своём поле. Если путь к цели закрыт, игрок выбывает из гонки, а соперник может продолжать.',
+        rulesMatch: 'Побеждает тот, кто собрал цель за меньшее число ходов. После первого финиша сопернику даётся столько же ходов, чтобы сравнять результат. Одинаковый результат или два тупика — ничья.',
         rulesJapanese: 'В японском выберите хирагану или катакану. Можно вводить знаки напрямую или печатать ромадзи, например re → れ / レ.',
         settings: 'Настройка партии', mode: 'Режим игры', duo: 'Вдвоём', bot: 'Против бота',
         online: 'По ссылке', language: 'Язык игры', script: 'Азбука',
@@ -1605,6 +1653,8 @@ Princeton University and LICENSEE agrees to preserve same.
     const turn = document.getElementById('turn');
     const notice = document.getElementById('notice');
     const matchScore = document.getElementById('match-score');
+    const raceProgress = document.getElementById('race-progress');
+    const boardLabels = [...raceProgress.children];
     const rulesDialog = document.getElementById('rules');
 
     document.getElementById('open-rules').addEventListener('click', () => {
@@ -1630,12 +1680,11 @@ Princeton University and LICENSEE agrees to preserve same.
 
     let round;
     let tileButtons = [];
-    let currentMove;
     let localTurn;
-    let roundWinners;
-    let used;
+    let localBoards;
+    let localWinner;
     let mode;
-    let nextStep;
+    let botDetoured;
     let botTimer;
     let selected = null;
 
@@ -1847,17 +1896,29 @@ Princeton University and LICENSEE agrees to preserve same.
         tile.classList.toggle('locked', locked);
         tile.disabled = !canPlay || locked;
       }
+    };
 
+    const renderRace = (boards, players, activeRow, canPlay) => {
+      matchScore.hidden = true;
+      raceProgress.hidden = false;
       input.disabled = !canPlay;
+
+      for (const [row, board] of boards.entries()) {
+        const name = players[row] ?? t('opponent');
+        boardLabels[row].textContent = t('raceMoves', { name, moves: board.moves });
+        if (board.status !== 'playing') boardLabels[row].textContent += ' · ' + t(board.status === 'blocked' ? 'raceBlocked' : board.status);
+      }
+
+      const { word, changed } = boards[activeRow];
+      paintBoard(word, changed, canPlay);
     };
 
     const render = () => {
-      const { word, changed } = currentMove;
-      const finished = roundWinners.length === 2;
+      const finished = localTurn === null;
       const botPlaying = !finished && isBotTurn();
-      paintBoard(word, changed, !finished && !botPlaying);
-      showMatchScore(roundWinners, [getPlayer(0), getPlayer(1)]);
-
+      const activeRow = mode === 'bot' ? 0 : localTurn ?? localWinner ?? 0;
+      const boards = localBoards.map((board) => ({ ...board, moves: board.used.size - 1 }));
+      renderRace(boards, [getPlayer(0), getPlayer(1)], activeRow, !finished && !botPlaying);
       turn.textContent = '';
       onlineTurn.hidden = finished || mode !== 'duo';
       if (!onlineTurn.hidden) {
@@ -1866,10 +1927,9 @@ Princeton University and LICENSEE agrees to preserve same.
       }
 
       if (finished) {
-        const [first, second] = roundWinners;
-        if (first !== second) setNotice(t('draw'));
-        else if (mode === 'bot' && first === 0) setNotice(t('won'));
-        else setNotice(t('winner', { name: getPlayer(first) }));
+        if (localWinner === null) setNotice(t('draw'));
+        else if (mode === 'bot' && localWinner === 0) setNotice(t('won'));
+        else setNotice(t('winner', { name: getPlayer(localWinner) }));
       } else if (botPlaying) {
         setNotice(t('botThinking'));
       } else {
@@ -1878,48 +1938,54 @@ Princeton University and LICENSEE agrees to preserve same.
       }
     };
 
-    const resetRound = (firstStep) => {
-      currentMove = { changed: -1, word: round.start };
-      used = new Set([round.start]);
-      nextStep = firstStep;
-      localTurn = roundWinners.length;
-    };
-
     const play = (word, changed) => {
-      currentMove = { changed, word };
-      used.add(word);
-      nextStep = word === round.goal
-        ? null
-        : findNextStep(word, round.goal, round.patterns, used);
+      const board = localBoards[localTurn];
+      board.word = word;
+      board.changed = changed;
+      board.used.add(word);
 
-      if (nextStep) {
-        localTurn = 1 - localTurn;
+      if (word === round.goal) {
+        board.status = 'solved';
       } else {
-        roundWinners.push(word === round.goal ? localTurn : 1 - localTurn);
-
-        if (roundWinners.length === 1) {
-          resetRound(findNextStep(round.start, round.goal, round.patterns, []));
-        }
+        board.next = findNextStep(word, round.goal, round.patterns, board.used);
+        if (!board.next) board.status = 'blocked';
       }
 
+      const result = advanceRace(localBoards, localTurn);
+      localTurn = result.turn;
+      localWinner = result.winner;
       clearSelection();
       render();
 
-      if (roundWinners.length < 2 && isBotTurn()) {
+      if (isBotTurn()) {
         botTimer = setTimeout(() => {
-          const changedByBot = [...currentMove.word].findIndex((letter, index) => {
-            return letter !== nextStep[index];
+          const bot = localBoards[1];
+          const changedByBot = [...bot.word].findIndex((letter, index) => {
+            return letter !== bot.next[index];
           });
+          let move = bot.next;
 
-          play(nextStep, changedByBot);
+          if (!botDetoured && bot.next !== round.goal && localBoards[0].status !== 'solved') {
+            // Keep the shortest continuation available after at most one extra move.
+            const candidates = round.patterns.get(wordPattern(bot.word, changedByBot));
+            const detour = candidates.find((candidate) => candidate !== bot.next
+              && !bot.used.has(candidate)
+              && candidate[changedByBot] !== round.goal[changedByBot]);
+            if (detour) {
+              move = detour;
+              botDetoured = true;
+            }
+          }
+
+          play(move, changedByBot);
         }, 520);
-      } else if (document.activeElement === document.body) {
-        const previousTile = tileButtons[currentMove.changed];
+      } else if (!rulesDialog.open && document.activeElement === document.body) {
+        const previousTile = tileButtons[changed];
         const availableTile = previousTile && !previousTile.disabled
           ? previousTile
           : tileButtons.find((tile) => !tile.disabled);
         const focusTarget = input.disabled ? restart : availableTile;
-        focusTarget.focus();
+        focusTarget?.focus();
       }
     };
 
@@ -1927,8 +1993,13 @@ Princeton University and LICENSEE agrees to preserve same.
       clearTimeout(botTimer);
       clearSelection();
       mode = document.querySelector('[name="mode"]:checked').value;
-      roundWinners = [];
-      resetRound(firstStep);
+      localBoards = [0, 1].map(() => ({
+        changed: -1, next: firstStep, status: 'playing', used: new Set([round.start]),
+        word: round.start,
+      }));
+      localTurn = 0;
+      localWinner = null;
+      botDetoured = false;
       render();
     };
 
@@ -1952,7 +2023,7 @@ Princeton University and LICENSEE agrees to preserve same.
         return;
       }
 
-      const current = mode === 'online' ? online.state.word : currentMove.word;
+      const current = mode === 'online' ? online.state.word : localBoards[localTurn].word;
       const word = current.slice(0, selected) + letter + current.slice(selected + 1);
       input.value = '';
 
@@ -1966,7 +2037,7 @@ Princeton University and LICENSEE agrees to preserve same.
       } else if (!round.words.has(word)) {
         const printed = printWord(word, round.language, round.script);
         setNotice(t('unknownQuoted', { word: printed }), true);
-      } else if (used.has(word)) {
+      } else if (localBoards[localTurn].used.has(word)) {
         setNotice(t('repeated_word'), true);
       } else {
         play(word, selected);
@@ -2362,7 +2433,15 @@ Princeton University and LICENSEE agrees to preserve same.
       const ownTurn = connected && !leaving && !pending
         && state.phase === 'playing' && state.turn === seat;
       const { players, roundWinners: winners, winner } = state;
-      showMatchScore(winners, players);
+      if (state.boards) {
+        renderRace([state.boards[seat], state.boards[1 - seat]],
+          [players[seat], players[1 - seat]], 0, ownTurn);
+      } else {
+        showMatchScore(winners, players);
+        raceProgress.hidden = true;
+        input.disabled = !ownTurn;
+        paintBoard(state.word, state.changed, ownTurn);
+      }
       let status;
       if (error) status = t(error);
       else if (state.phase === 'finished') {
@@ -2382,7 +2461,6 @@ Princeton University and LICENSEE agrees to preserve same.
       restart.textContent = t(!error && seat === 1 && state.phase === 'playing'
         ? 'leaveGame' : 'newGame');
       restart.disabled = !!leaving;
-      paintBoard(state.word, state.changed, ownTurn);
       setNotice(ownTurn ? t('selectPrompt') : '');
     };
 
@@ -2481,7 +2559,7 @@ Princeton University and LICENSEE agrees to preserve same.
           pendingCreate = { fingerprint, id: crypto.randomUUID(), token: crypto.randomUUID() };
         }
         const { id, token } = pendingCreate;
-        const result = await roomRequest(id, { action: 'create', config, name, rounds: 2, token });
+        const result = await roomRequest(id, { action: 'create', config, name, race: true, token });
         enterOnline(id, token, result);
         pendingCreate = null;
       } catch (error) {
