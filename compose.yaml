@@ -1,0 +1,16 @@
+name: word-ladder
+services:
+  game:
+    build: ./server
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ports: ["127.0.0.1:3003:8787"]
+    environment:
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Set the frontend origin in .env}
+    volumes:
+      - games:/app/data
+
+volumes:
+  games:
