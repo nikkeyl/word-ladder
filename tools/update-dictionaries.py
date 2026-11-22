@@ -12,12 +12,12 @@ from urllib.request import urlopen
 
 import pymorphy3
 
-ROOT = Path(__file__).resolve().parents[1]
+from browser_dictionaries import ROOT, SERVER_PREFIX, read_server_dictionaries, write_browser_dictionaries
+
 ENGLISH_SOURCE = 'https://cdn.jsdelivr.net/npm/word-list@4.1.0/words.txt'
 RUSSIAN_EXCLUDED = {'Abbr', 'Name', 'Surn', 'Patr', 'Geox', 'Orgn', 'Trad', 'Erro'}
 RUSSIAN_SHORT_FORM_MAX_LENGTH = 6
 KATAKANA_TO_HIRAGANA = {point: point - 0x60 for point in range(0x30A1, 0x30F7)}
-SERVER_PREFIX = 'export const DICTIONARIES = '
 
 
 def russian_words():
@@ -72,9 +72,8 @@ def main():
     parser.add_argument('--english-file', type=Path, help='A local copy of the pinned CDN list')
     args = parser.parse_args()
 
-    html_path = ROOT / 'index.html'
     server_path = ROOT / 'server/dictionaries.mjs'
-    html = html_path.read_text(encoding='utf-8')
+    existing = read_server_dictionaries()
     grouped = {}
     sources = {
         'en': english_words(args.english_file),
@@ -83,12 +82,8 @@ def main():
     }
 
     for language, source in sources.items():
-        pattern = re.compile(r'(<script id="dictionary-' + language
-                             + r'" type="text/plain">\n)([^<]*)(\n  </script>)')
-        match, = pattern.finditer(html)
-        previous = set(match[2].splitlines())
+        previous = {word for bucket in existing[language].values() for word in bucket.splitlines()}
         words = previous.union(source)
-        html = pattern.sub(lambda match: match[1] + '\n'.join(sorted(words)) + match[3], html)
 
         by_length = defaultdict(list)
         for word in sorted(words):
@@ -100,7 +95,7 @@ def main():
 
     server_data = json.dumps(grouped, ensure_ascii=False, separators=(',', ':'))
     server_path.write_text(SERVER_PREFIX + server_data + ';\n', encoding='utf-8')
-    html_path.write_text(html, encoding='utf-8')
+    write_browser_dictionaries(grouped)
 
 
 if __name__ == '__main__':
