@@ -74,11 +74,12 @@ const playerName = (value) => {
   return name.length <= MAX_NAME_LENGTH && !/[\x00-\x1f\x7f]/.test(name) ? name : '';
 };
 
-const newRaceBoards = (start) => [0, 1].map(() => ({
-  changed: -1, status: 'playing', used: [start], word: start,
+const newRaceBoards = (start, revision) => [0, 1].map(() => ({
+  revision, changed: -1, status: 'playing', used: [start], word: start,
 }));
 
 const publicState = (game, seat) => ({
+  boardRevision: game.boards?.[seat].revision,
   boards: game.boards?.map((board, index) => {
     const visible = index === seat || game.phase === 'finished' || board.used.length === 1;
 
@@ -95,6 +96,7 @@ const publicState = (game, seat) => ({
   players: game.players.map((player) => player.name),
   revision: game.revision,
   roundWinners: game.roundWinners,
+  simultaneous: game.simultaneous,
   turn: game.turn,
   winner: game.winner,
   word: game.boards?.[seat].word ?? game.word,
@@ -192,8 +194,9 @@ class GameRoom {
         return error('no_path', 422);
       }
 
+      const simultaneous = body.race === true && body.simultaneous === true;
       const fresh = {
-        boards: body.race === true ? newRaceBoards(start) : undefined,
+        boards: body.race === true ? newRaceBoards(start, simultaneous ? 0 : undefined) : undefined,
         changed: -1,
         config,
         expiresAt: Date.now() + ROOM_TTL,
@@ -201,6 +204,7 @@ class GameRoom {
         players: [{ name, token }],
         revision: 0,
         roundWinners: body.rounds === 2 ? [] : undefined,
+        simultaneous,
         turn: 0,
         used: [start],
         winner: null,
@@ -232,12 +236,13 @@ class GameRoom {
       if (game.phase !== 'playing') return error('game_ended', 409);
 
       game.players.pop();
-      if (game.boards) {
-        game.boards = newRaceBoards(game.config.start);
-        game.turn = 0;
-      }
       game.phase = 'waiting';
       game.revision += 1;
+      if (game.boards) {
+        game.boards = newRaceBoards(game.config.start,
+          game.simultaneous ? game.revision : undefined);
+        game.turn = 0;
+      }
       this.save(game);
 
       for (const socket of this.sockets) {
@@ -309,13 +314,16 @@ class GameRoom {
     }
 
     if (!move || move.type !== 'move') return reject('invalid_move');
-    if (move.revision !== game.revision) return reject('stale_move', game);
     const { seat } = socket;
-    if (game.phase !== 'playing' || seat !== game.turn) return reject('not_your_turn', game);
+    const board = game.boards?.[seat] ?? game;
+    // Opponent moves advance the room version without invalidating this board.
+    const revision = game.simultaneous ? board.revision : game.revision;
+    if (move.revision !== revision) return reject('stale_move', game);
+    const canPlay = game.simultaneous ? board.status === 'playing' : seat === game.turn;
+    if (game.phase !== 'playing' || !canPlay) return reject('not_your_turn', game);
 
     const { letter, position } = move;
     const { goal, language } = game.config;
-    const board = game.boards?.[seat] ?? game;
     if (!Number.isInteger(position) || position < 0 || position >= board.word.length
       || typeof letter !== 'string' || letter.length !== 1
       || !WORD_PATTERNS[language].test(letter) || letter === board.word[position]) {
@@ -332,6 +340,7 @@ class GameRoom {
     board.changed = position;
     board.used.push(word);
     game.revision += 1;
+    if (game.simultaneous) board.revision = game.revision;
     const reachedGoal = word === goal;
     const canContinue = !reachedGoal && findNextStep(word, goal, patterns, board.used);
 

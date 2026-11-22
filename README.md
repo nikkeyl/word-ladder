@@ -13,9 +13,10 @@ by changing one character at a time. This project was made with AI.
 1. Pick two different words of the same length, with at least three characters each.
 2. Select a tile and type one replacement character. A tile locks as soon as it
    matches the target at that position.
-3. Take turns on separate boards. Both players start with the same word and
-   build their own chains. Intermediate words must be in the dictionary,
-   and each word can be used once per board.
+3. Build separate chains from the same starting word. In link games, both
+   players can move at the same time. On one device or against the bot,
+   take turns. Intermediate words must be in the dictionary, and each
+   word can be used once per board.
 4. Reach the target in fewer moves to win. After one player finishes,
    the other can still match that move count. Equal move counts or two
    dead ends are a draw. If only one player hits a dead end, the other

@@ -1399,6 +1399,7 @@ Princeton University and LICENSEE agrees to preserve same.
     const STRINGS = {
       en: {
         opponent: 'Opponent',
+        raceWaiting: 'Your opponent is still playing…',
         raceMoves: '{name} · Moves: {moves}',
         solved: 'Solved',
         limit: 'Move limit reached',
@@ -1408,7 +1409,7 @@ Princeton University and LICENSEE agrees to preserve same.
         rulesSetup: 'Choose two different words of the same length, at least three characters each.',
         rulesMove: 'Change one character per turn. Click a tile or use ← → to select it, then type the replacement. Intermediate words must be in the dictionary. You can use each word only once per round.',
         rulesLock: 'A character locks as soon as it matches the target in that position.',
-        rulesRound: 'Each player builds their own chain from the same starting word. Take turns and change a tile on your own board. If your chain leads to a dead end, your board stops and the other player can continue.',
+        rulesRound: 'Each player builds their own chain from the same starting word. Play at the same time in link games. Take turns on one device or against the bot. If your chain leads to a dead end, your board stops and the other player can continue.',
         rulesMatch: 'The player who reaches the target in fewer moves wins. After one player finishes, the other gets the same number of moves to match that result. Equal scores, or two dead ends, are a draw.',
         rulesJapanese: 'For Japanese, choose hiragana or katakana. Type kana directly or use romaji, for example re → れ / レ.',
         settings: 'Game settings', mode: 'Game mode', duo: 'Two players', bot: 'Vs. bot',
@@ -1463,6 +1464,7 @@ Princeton University and LICENSEE agrees to preserve same.
       },
       ja: {
         opponent: '対戦相手',
+        raceWaiting: '相手はまだプレイ中です…',
         raceMoves: '{name} · {moves}手',
         solved: 'ゴール達成',
         limit: '手数の上限',
@@ -1472,7 +1474,7 @@ Princeton University and LICENSEE agrees to preserve same.
         rulesSetup: '同じ長さで3文字以上の、異なる単語を2つ選びます。',
         rulesMove: '1回の手番で1文字だけ入れ替えます。タイルを押すか、← →キーで選んでから、新しい文字を入力します。途中の単語は辞書にあるものに限ります。同じラウンドで同じ単語は使えません。',
         rulesLock: 'ゴールの単語と同じ位置に同じ文字がそろうと、そのタイルは固定されます。',
-        rulesRound: '同じ最初の単語から、各自の盤で別々に単語をつなげます。交互に自分のタイルを変えます。ゴールまでの道がなくなった人は終了し、相手は続けられます。',
+        rulesRound: '同じ最初の単語から、各自の盤で別々に単語をつなげます。リンク対戦では同時にプレイでき、同じ端末やボットとの対戦では交互に手を打ちます。ゴールまでの道がなくなった人は終了し、相手は続けられます。',
         rulesMatch: 'より少ない手数でゴールした人が勝ちです。一方がゴールしたら、もう一方も同じ手数まで続けられます。同じ手数でゴールした場合や、両方が行き詰まった場合は引き分けです。',
         rulesJapanese: '日本語では、ひらがなかカタカナを選びます。仮名を直接入力することも、ローマ字で入力することもできます。例：re → れ / レ。',
         settings: 'ゲーム設定', mode: '対戦モード', duo: '2人で対戦', bot: 'ボットと対戦',
@@ -1527,6 +1529,7 @@ Princeton University and LICENSEE agrees to preserve same.
       },
       ru: {
         opponent: 'Соперник',
+        raceWaiting: 'Соперник ещё играет…',
         raceMoves: '{name} · Ходы: {moves}',
         solved: 'Цель собрана',
         limit: 'Лимит ходов исчерпан',
@@ -1536,7 +1539,7 @@ Princeton University and LICENSEE agrees to preserve same.
         rulesSetup: 'Выберите два разных слова одинаковой длины, от трёх знаков.',
         rulesMove: 'За ход замените один знак. Выберите плитку нажатием или стрелками ← → и введите новый знак. Промежуточное слово должно быть в словаре. Повторять слова в одном раунде нельзя.',
         rulesLock: 'Знак, который совпадает с целью на своей позиции, сразу блокируется.',
-        rulesRound: 'У каждого своё поле с одним и тем же стартовым словом. Ходите по очереди и меняйте буквы только на своём поле. Если путь к цели закрыт, игрок выбывает из гонки, а соперник может продолжать.',
+        rulesRound: 'У каждого своё поле с одним и тем же стартовым словом. По ссылке можно ходить одновременно. На одном устройстве и с ботом ходы идут по очереди. Если путь к цели закрыт, игрок выбывает из гонки, а соперник может продолжать.',
         rulesMatch: 'Побеждает тот, кто собрал цель за меньшее число ходов. После первого финиша сопернику даётся столько же ходов, чтобы сравнять результат. Одинаковый результат или два тупика — ничья.',
         rulesJapanese: 'В японском выберите хирагану или катакану. Можно вводить знаки напрямую или печатать ромадзи, например re → れ / レ.',
         settings: 'Настройка партии', mode: 'Режим игры', duo: 'Вдвоём', bot: 'Против бота',
@@ -2430,8 +2433,10 @@ Princeton University and LICENSEE agrees to preserve same.
 
     const renderOnline = () => {
       const { connected, error, leaving, pending, seat, state } = online;
+      const canPlay = state.simultaneous ? state.boards[seat].status === 'playing'
+        : state.turn === seat;
       const ownTurn = connected && !leaving && !pending
-        && state.phase === 'playing' && state.turn === seat;
+        && state.phase === 'playing' && canPlay;
       const { players, roundWinners: winners, winner } = state;
       if (state.boards) {
         renderRace([state.boards[seat], state.boards[1 - seat]],
@@ -2451,6 +2456,7 @@ Princeton University and LICENSEE agrees to preserve same.
       else if (!connected) status = t(online.socket ? 'reconnecting' : 'loading');
       else if (state.phase === 'waiting') status = t('waiting');
       else if (pending) status = t('sending');
+      else if (state.simultaneous && !canPlay) status = t('raceWaiting');
       else status = ownTurn ? t('yourTurn') : t('theirTurn', { name: players[state.turn] });
 
       turn.textContent = '';
@@ -2461,7 +2467,7 @@ Princeton University and LICENSEE agrees to preserve same.
       restart.textContent = t(!error && seat === 1 && state.phase === 'playing'
         ? 'leaveGame' : 'newGame');
       restart.disabled = !!leaving;
-      setNotice(ownTurn ? t('selectPrompt') : '');
+      if (!ownTurn || selected === null) setNotice(ownTurn ? t('selectPrompt') : '');
     };
 
     const reopenOnline = (session) => {
@@ -2501,12 +2507,20 @@ Princeton University and LICENSEE agrees to preserve same.
         if (online !== session || session.socket !== socket) return;
         const message = JSON.parse(event.data);
         session.connected = true;
-        session.pending = false;
         session.delay = 500;
-        if (message.state && message.state.revision >= session.state.revision) {
-          clearSelection();
-          session.state = message.state;
+        const previous = session.state;
+        const next = message.state;
+        if (next && next.revision >= previous.revision) {
+          const boardChanged = !previous.simultaneous
+            || previous.boardRevision !== next.boardRevision || previous.phase !== next.phase
+            || previous.boards[session.seat].status !== next.boards[session.seat].status;
+          if (boardChanged) {
+            session.pending = false;
+            clearSelection();
+          }
+          session.state = next;
         }
+        if (message.type === 'error') session.pending = false;
         renderOnline();
         if (message.type === 'error') setNotice(t(message.code), true);
       });
@@ -2559,7 +2573,9 @@ Princeton University and LICENSEE agrees to preserve same.
           pendingCreate = { fingerprint, id: crypto.randomUUID(), token: crypto.randomUUID() };
         }
         const { id, token } = pendingCreate;
-        const result = await roomRequest(id, { action: 'create', config, name, race: true, token });
+        const result = await roomRequest(id, {
+          action: 'create', config, name, race: true, simultaneous: true, token,
+        });
         enterOnline(id, token, result);
         pendingCreate = null;
       } catch (error) {
@@ -2687,11 +2703,10 @@ Princeton University and LICENSEE agrees to preserve same.
     };
 
     const sendOnlineMove = (position, letter) => {
-      if (!online.connected || online.socket.readyState !== WebSocket.OPEN) return;
+      if (!online.connected || online.pending || online.socket.readyState !== WebSocket.OPEN) return;
 
-      online.socket.send(JSON.stringify({
-        letter, position, revision: online.state.revision, type: 'move',
-      }));
+      const revision = online.state.boardRevision ?? online.state.revision;
+      online.socket.send(JSON.stringify({ letter, position, revision, type: 'move' }));
       online.pending = true;
       clearSelection();
       renderOnline();
