@@ -79,6 +79,7 @@ const publicState = (game) => ({
   phase: game.phase,
   players: game.players.map((player) => player.name),
   revision: game.revision,
+  roundWinners: game.roundWinners,
   turn: game.turn,
   winner: game.winner,
   word: game.word,
@@ -182,6 +183,7 @@ class GameRoom {
         phase: 'waiting',
         players: [{ name, token }],
         revision: 0,
+        roundWinners: body.rounds === 2 ? [] : undefined,
         turn: 0,
         used: [start],
         winner: null,
@@ -308,13 +310,28 @@ class GameRoom {
     game.changed = position;
     game.used.push(word);
     game.revision += 1;
-    if (word === goal) {
-      game.phase = 'finished';
-      game.winner = seat;
-    } else if (!findNextStep(word, goal, patterns, game.used)) {
-      game.phase = 'blocked';
-    } else {
+    const reachedGoal = word === goal;
+    const canContinue = !reachedGoal && findNextStep(word, goal, patterns, game.used);
+
+    if (canContinue) {
       game.turn = 1 - game.turn;
+    } else if (game.roundWinners) {
+      game.roundWinners.push(reachedGoal ? seat : 1 - seat);
+
+      if (game.roundWinners.length === 1) {
+        const { start } = game.config;
+        game.word = start;
+        game.changed = -1;
+        game.used = [start];
+        game.turn = 1;
+      } else {
+        const [first, second] = game.roundWinners;
+        game.winner = first === second ? first : null;
+        game.phase = 'finished';
+      }
+    } else {
+      game.phase = reachedGoal ? 'finished' : 'blocked';
+      game.winner = reachedGoal ? seat : null;
     }
     this.save(game);
     this.broadcast(game);
