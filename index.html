@@ -893,6 +893,8 @@
     </section>
 
     <section id="game" class="board relative" hidden data-i18n-label="board" aria-label="Игровое поле">
+      <p id="match-score" class="online-status mb-2 text-center text-sm font-bold"
+        role="status" hidden></p>
       <p id="turn" class="sr-only" role="status"></p>
       <p id="online-turn" class="online-status mb-2 text-center text-sm font-bold"
         role="status" hidden></p>
@@ -1286,6 +1288,7 @@ Princeton University and LICENSEE agrees to preserve same.
         waiting: 'Waiting for the second player…', reconnecting: 'Reconnecting…',
         sending: 'Sending move…', yourTurn: 'Your turn', theirTurn: '{name}’s turn',
         player: 'Player {number}', you: 'You', botName: 'Bot', botThinking: 'The bot is thinking…',
+        matchScore: 'Round {round}/2 · {first} {a} – {b} {second}', draw: 'Draw!',
         won: 'You won!', winner: 'Winner: {name}', blocked: 'No path remains. Start a new game.',
         selectPrompt: 'Click a tile or use ← and → to select it.',
         selectLetter: 'Enter a character to replace “{letter}”.', romajiHint: 'Romaji also works.',
@@ -1336,6 +1339,7 @@ Princeton University and LICENSEE agrees to preserve same.
         waiting: '対戦相手の参加を待っています…', reconnecting: '再接続中…',
         sending: '手を送信中…', yourTurn: 'あなたの番', theirTurn: '{name}さんの番',
         player: 'プレイヤー{number}', you: 'あなた', botName: 'ボット', botThinking: 'ボットが考えています…',
+        matchScore: '第{round}ラウンド／全2回 · {first} {a} – {b} {second}', draw: '引き分け！',
         won: 'あなたの勝ちです！', winner: '勝者：{name}', blocked: 'ゴールまでの道がありません。新しいゲームを始めてください。',
         selectPrompt: 'タイルを押すか、← →で選んでください。',
         selectLetter: '「{letter}」の代わりに入れる文字を入力してください。', romajiHint: 'ローマ字も使えます。',
@@ -1386,6 +1390,7 @@ Princeton University and LICENSEE agrees to preserve same.
         waiting: 'Ждём второго игрока…', reconnecting: 'Восстанавливаем соединение…',
         sending: 'Отправляем ход…', yourTurn: 'Ваш ход', theirTurn: 'Ходит {name}',
         player: 'Игрок {number}', you: 'Вы', botName: 'Бот', botThinking: 'Бот думает…',
+        matchScore: 'Раунд {round}/2 · {first} {a} – {b} {second}', draw: 'Ничья!',
         won: 'Вы победили!', winner: 'Победитель — {name}', blocked: 'Путь к цели закрыт. Начните новую игру.',
         selectPrompt: 'Выберите плитку нажатием или стрелками ← →.',
         selectLetter: 'Введите знак вместо «{letter}».', romajiHint: 'Можно ромадзи.',
@@ -1485,10 +1490,13 @@ Princeton University and LICENSEE agrees to preserve same.
     const tiles = document.getElementById('tiles');
     const turn = document.getElementById('turn');
     const notice = document.getElementById('notice');
+    const matchScore = document.getElementById('match-score');
 
     let round;
     let tileButtons = [];
-    let history;
+    let currentMove;
+    let localTurn;
+    let roundWinners;
     let used;
     let mode;
     let nextStep;
@@ -1661,15 +1669,27 @@ Princeton University and LICENSEE agrees to preserve same.
       input.blur();
     };
 
-    const getPlayer = () => {
-      const second = history.length % 2 === 0;
+    const getPlayer = (seat = localTurn) => {
+      if (mode === 'bot') return t(seat === 1 ? 'botName' : 'you');
 
-      if (mode === 'bot') return t(second ? 'botName' : 'you');
-
-      return t('player', { number: second ? 2 : 1 });
+      return t('player', { number: seat + 1 });
     };
 
-    const isBotTurn = () => mode === 'bot' && history.length % 2 === 0;
+    const isBotTurn = () => mode === 'bot' && localTurn === 1;
+
+    const showMatchScore = (winners, players) => {
+      matchScore.hidden = !winners || players.length < 2;
+      if (matchScore.hidden) return;
+
+      const a = winners.filter((winner) => winner === 0).length;
+      matchScore.textContent = t('matchScore', {
+        round: Math.min(winners.length + 1, 2),
+        first: players[0],
+        a,
+        b: winners.length - a,
+        second: players[1],
+      });
+    };
 
     const paintBoard = (word, changed, canPlay) => {
       const printed = printWord(word, round.language, round.script);
@@ -1696,49 +1716,72 @@ Princeton University and LICENSEE agrees to preserve same.
     };
 
     const render = () => {
-      const { word, player, changed } = history.at(-1);
-      const finished = word === round.goal || !nextStep;
+      const { word, changed } = currentMove;
+      const finished = roundWinners.length === 2;
       const botPlaying = !finished && isBotTurn();
       paintBoard(word, changed, !finished && !botPlaying);
+      showMatchScore(roundWinners, [getPlayer(0), getPlayer(1)]);
 
       turn.textContent = '';
-      if (word === round.goal) {
-        setNotice(player === t('you') ? t('won') : t('winner', { name: player }));
-      } else if (!nextStep) {
-        setNotice(t('blocked'));
+      onlineTurn.hidden = finished || mode !== 'duo';
+      if (!onlineTurn.hidden) {
+        onlineTurn.textContent = t('theirTurn', { name: getPlayer() });
+        onlineTurn.dataset.ownTurn = 'false';
+      }
+
+      if (finished) {
+        const [first, second] = roundWinners;
+        if (first !== second) setNotice(t('draw'));
+        else if (mode === 'bot' && first === 0) setNotice(t('won'));
+        else setNotice(t('winner', { name: getPlayer(first) }));
       } else if (botPlaying) {
         setNotice(t('botThinking'));
       } else {
-        turn.textContent = mode === 'bot' ? t('yourTurn') : t('theirTurn', { name: getPlayer() });
+        if (mode === 'bot') turn.textContent = t('yourTurn');
         setNotice(t('selectPrompt'));
       }
     };
 
-    const play = (word, changed) => {
-      const move = { changed, player: getPlayer(), word };
+    const resetRound = (firstStep) => {
+      currentMove = { changed: -1, word: round.start };
+      used = new Set([round.start]);
+      nextStep = firstStep;
+      localTurn = roundWinners.length;
+    };
 
-      history.push(move);
+    const play = (word, changed) => {
+      currentMove = { changed, word };
       used.add(word);
       nextStep = word === round.goal
         ? null
         : findNextStep(word, round.goal, round.patterns, used);
+
+      if (nextStep) {
+        localTurn = 1 - localTurn;
+      } else {
+        roundWinners.push(word === round.goal ? localTurn : 1 - localTurn);
+
+        if (roundWinners.length === 1) {
+          resetRound(findNextStep(round.start, round.goal, round.patterns, []));
+        }
+      }
+
       clearSelection();
       render();
 
-      if (nextStep && isBotTurn()) {
+      if (roundWinners.length < 2 && isBotTurn()) {
         botTimer = setTimeout(() => {
-          const current = history.at(-1).word;
-          const changedByBot = [...current].findIndex((letter, index) => {
+          const changedByBot = [...currentMove.word].findIndex((letter, index) => {
             return letter !== nextStep[index];
           });
 
           play(nextStep, changedByBot);
         }, 520);
       } else if (document.activeElement === document.body) {
-        const previousTile = tileButtons[changed];
-        const availableTile = previousTile.disabled
-          ? tileButtons.find((tile) => !tile.disabled)
-          : previousTile;
+        const previousTile = tileButtons[currentMove.changed];
+        const availableTile = previousTile && !previousTile.disabled
+          ? previousTile
+          : tileButtons.find((tile) => !tile.disabled);
         const focusTarget = input.disabled ? restart : availableTile;
         focusTarget.focus();
       }
@@ -1748,9 +1791,8 @@ Princeton University and LICENSEE agrees to preserve same.
       clearTimeout(botTimer);
       clearSelection();
       mode = document.querySelector('[name="mode"]:checked').value;
-      history = [{ changed: -1, player: 'Старт', word: round.start }];
-      used = new Set([round.start]);
-      nextStep = firstStep;
+      roundWinners = [];
+      resetRound(firstStep);
       render();
     };
 
@@ -1774,7 +1816,7 @@ Princeton University and LICENSEE agrees to preserve same.
         return;
       }
 
-      const current = mode === 'online' ? online.state.word : history.at(-1).word;
+      const current = mode === 'online' ? online.state.word : currentMove.word;
       const word = current.slice(0, selected) + letter + current.slice(selected + 1);
       input.value = '';
 
@@ -2183,11 +2225,13 @@ Princeton University and LICENSEE agrees to preserve same.
       const { connected, error, leaving, pending, seat, state } = online;
       const ownTurn = connected && !leaving && !pending
         && state.phase === 'playing' && state.turn === seat;
-      const { players, winner } = state;
+      const { players, roundWinners: winners, winner } = state;
+      showMatchScore(winners, players);
       let status;
       if (error) status = t(error);
       else if (state.phase === 'finished') {
-        status = winner === seat ? t('won') : t('winner', { name: players[winner] });
+        if (winner === null) status = t('draw');
+        else status = winner === seat ? t('won') : t('winner', { name: players[winner] });
       } else if (state.phase === 'blocked') status = t('blocked');
       else if (!connected) status = t(online.socket ? 'reconnecting' : 'loading');
       else if (state.phase === 'waiting') status = t('waiting');
@@ -2301,7 +2345,7 @@ Princeton University and LICENSEE agrees to preserve same.
           pendingCreate = { fingerprint, id: crypto.randomUUID(), token: crypto.randomUUID() };
         }
         const { id, token } = pendingCreate;
-        const result = await roomRequest(id, { action: 'create', config, name, token });
+        const result = await roomRequest(id, { action: 'create', config, name, rounds: 2, token });
         enterOnline(id, token, result);
         pendingCreate = null;
       } catch (error) {
