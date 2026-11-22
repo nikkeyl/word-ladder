@@ -1909,18 +1909,54 @@ Princeton University and LICENSEE agrees to preserve same.
     const dictionaryAssets = JSON.parse(document.getElementById('dictionary-assets').textContent);
     const dictionaryCache = new Map();
 
+    const storedDictionary = (url, source) => new Promise((resolve) => {
+      const opening = indexedDB.open('word-ladder-dictionaries', 1);
+      opening.onerror = opening.onblocked = () => resolve();
+      opening.onupgradeneeded = () => opening.result.createObjectStore('lists');
+      opening.onsuccess = () => {
+        const database = opening.result;
+        const reading = source === undefined;
+        try {
+          const transaction = database.transaction('lists', reading ? 'readonly' : 'readwrite');
+          const lists = transaction.objectStore('lists');
+          const request = reading ? lists.get(url) : lists.put(source, url);
+
+          transaction.oncomplete = () => {
+            database.close();
+            resolve(request.result);
+          };
+          transaction.onabort = () => {
+            database.close();
+            resolve();
+          };
+        } catch {
+          database.close();
+          resolve();
+        }
+      };
+    }).catch(() => undefined);
+
     const loadDictionary = async (language, length) => {
       const embedded = document.getElementById('dictionary-' + language);
       if (embedded) return embedded.textContent;
       if (location.protocol === 'file:') throw new Error('dictionaryFile');
 
-      const url = dictionaryAssets[language]?.[length];
-      if (!url) return '';
+      const asset = dictionaryAssets[language]?.[length];
+      if (!asset) return '';
 
+      const url = new URL(asset, location.href).href;
       const cached = dictionaryCache.get(url);
       if (cached) return cached;
 
+      const saved = await storedDictionary(url);
+      if (saved) {
+        dictionaryCache.set(url, saved);
+        return saved;
+      }
+
       const response = await fetch(url, {
+        // The dictionary URL changes when its contents change.
+        cache: 'force-cache',
         signal: AbortSignal.timeout(12000),
       });
       if (!response.ok) throw new Error('dictionaryUnavailable');
@@ -1928,6 +1964,7 @@ Princeton University and LICENSEE agrees to preserve same.
       const source = (await response.text()).trim();
       if (!source) throw new Error('dictionaryUnavailable');
 
+      await storedDictionary(url, source);
       dictionaryCache.set(url, source);
       return source;
     };
