@@ -13,7 +13,13 @@ by changing one character at a time. This project was made with AI.
 1. Pick two different words of the same length, with at least three characters each.
 2. Select a tile and type one replacement character. A tile locks as soon as it
    matches the target at that position.
-3. Take turns. The player who completes the target word wins.
+3. Take turns on separate boards. Both players start with the same word and
+   build their own chains. Intermediate words must be in the dictionary,
+   and each word can be used once per board.
+4. Reach the target in fewer moves to win. After one player finishes,
+   the other can still match that move count. Equal move counts or two
+   dead ends are a draw. If only one player hits a dead end, the other
+   can continue.
 
 Play together on one device, against the bot, or online. Choose **Play by link**
 to invite a friend. To play offline, unzip the download and open `word-ladder.html`

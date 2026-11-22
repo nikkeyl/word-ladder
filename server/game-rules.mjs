@@ -57,3 +57,24 @@ export const findNextStep = (current, goal, patterns, blocked) => {
 
   return null;
 };
+
+export const advanceRace = (boards, seat) => {
+  const opponent = 1 - seat;
+  const moves = (board) => (board.used.size ?? board.used.length) - 1;
+  const firstFinisher = boards.find((board) => board.status === 'solved');
+  const limit = firstFinisher ? moves(firstFinisher) : Infinity;
+
+  for (const board of boards) {
+    if (board.status === 'playing' && moves(board) >= limit) board.status = 'limit';
+  }
+
+  if (boards[opponent].status === 'playing') return { turn: opponent, winner: null };
+  if (boards[seat].status === 'playing') return { turn: seat, winner: null };
+
+  const scores = boards.map((board) => board.status === 'solved' ? moves(board) : Infinity);
+
+  return {
+    turn: null,
+    winner: scores[0] === scores[1] ? null : Number(scores[1] < scores[0]),
+  };
+};
