@@ -163,9 +163,12 @@ class GameRoom {
     if (request.method !== 'POST') return error('bad_request', 405);
 
     const body = await readBody(request);
-    if (!body || !isUuid(body.token)) return error('bad_request', 400);
+    if (!body) return error('bad_request', 400);
     const { action, token } = body;
+    if (action !== 'status' && !isUuid(token)) return error('bad_request', 400);
     const game = this.getGame();
+
+    if (game?.phase === 'closed') return error('not_found', 404);
 
     if (action === 'create') {
       if (game) {
@@ -204,9 +207,39 @@ class GameRoom {
     }
 
     if (!game || game.expiresAt <= Date.now()) return error('not_found', 404);
+    if (action === 'status') return json({});
     const seat = game.players.findIndex((player) => player.token === token);
     if (action === 'resume') {
       return seat < 0 ? error('invalid_seat', 403) : this.session(game, seat);
+    }
+    if (action === 'end') {
+      if (seat !== 0) return error('invalid_seat', 403);
+
+      game.phase = 'closed';
+      this.save(game);
+
+      for (const socket of this.sockets) socket.close(4001, 'Game closed');
+      this.sockets.clear();
+      return json({});
+    }
+    if (action === 'leave') {
+      if (seat !== 1) return error('invalid_seat', 403);
+      if (game.phase !== 'playing') return error('game_ended', 409);
+
+      game.players.pop();
+      game.phase = 'waiting';
+      game.revision += 1;
+      this.save(game);
+
+      for (const socket of this.sockets) {
+        if (socket.seat !== seat) continue;
+
+        this.sockets.delete(socket);
+        socket.close(4002, 'Guest left');
+      }
+
+      this.broadcast(game);
+      return json({});
     }
     if (action !== 'join') return error('bad_request', 400);
     if (seat >= 0) return this.session(game, seat);
@@ -242,12 +275,14 @@ class GameRoom {
   }
 
   webSocketMessage(socket, message) {
+    if (!this.sockets.has(socket)) return;
+
     const reject = (code, game) => {
       const state = game ? publicState(game) : undefined;
       socket.send(JSON.stringify({ code, state, type: 'error' }));
     };
     const game = this.getGame();
-    if (!game || game.expiresAt <= Date.now()) {
+    if (!game || game.phase === 'closed' || game.expiresAt <= Date.now()) {
       socket.close(4001, 'Game expired');
       return;
     }
@@ -357,7 +392,9 @@ server.on('upgrade', (request, socket, head) => {
 
   const room = roomFor(match[1].toLowerCase());
   const game = room.getGame();
-  if (!game || game.expiresAt <= Date.now()) return reject('404 Not Found');
+  if (!game || game.phase === 'closed' || game.expiresAt <= Date.now()) {
+    return reject('404 Not Found');
+  }
 
   const offered = (request.headers['sec-websocket-protocol'] ?? '')
     .split(',').map((item) => item.trim());
