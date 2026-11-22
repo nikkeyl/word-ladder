@@ -29,13 +29,19 @@ def write_browser_dictionaries(grouped):
     embedded = []
 
     for language, buckets in sorted(grouped.items()):
+        assets[language] = {}
+        for length, bucket in sorted(buckets.items(), key=lambda item: int(item[0])):
+            if int(length) < 3:
+                continue
+
+            data = (bucket + '\n').encode('utf-8')
+            revision = hashlib.sha256(data).hexdigest()[:16]
+            name = f'{language}-{length}-{revision}.txt'
+            (asset_folder / name).write_bytes(data)
+            assets[language][length] = f'./dictionaries/{name}'
+
         words = sorted(word for bucket in buckets.values() for word in bucket.splitlines())
         text = '\n'.join(words) + '\n'
-        data = text.encode('utf-8')
-        revision = hashlib.sha256(data).hexdigest()[:16]
-        name = f'{language}-{revision}.txt'
-        (asset_folder / name).write_bytes(data)
-        assets[language] = f'./dictionaries/{name}'
         embedded.append(f'<script id="dictionary-{language}" type="text/plain">\n{text}</script>')
 
     tags = json.dumps(assets, separators=(',', ':'))

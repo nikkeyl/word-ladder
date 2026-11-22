@@ -28,8 +28,8 @@ Download the `JMdict.gz` XML archive from EDRDG. Run
 The tool loads the versioned English list from jsDelivr and accepts a local
 copy via `--english-file`. It retains existing entries and updates the server
 word sets in `server/dictionaries.mjs`. The versioned files in `dictionaries/`
-and the offline download use those same sets. Deploy the server and browser
-artifacts together.
+are grouped by language and word length. The offline download includes all
+word sets. Deploy the server and browser artifacts together.
 
 After editing `index.html`, run `python tools/browser_dictionaries.py` to
 refresh the offline download and confirm that its word lists match the server.
