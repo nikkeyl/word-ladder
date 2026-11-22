@@ -688,6 +688,7 @@
       background: var(--control-fill);
     }
     .board-action:hover:enabled { background: var(--control-hover); }
+    .unavailable-game { max-inline-size: 22rem; }
     .online-status {
       min-height: 1.75rem;
       color: #e2e8ff;
@@ -829,6 +830,14 @@
       <button id="join-back" data-i18n="back"
         class="board-action mt-2 w-full text-sm font-semibold" type="button">Назад</button>
     </form>
+
+    <section id="unavailable-game" class="setup unavailable-game text-center"
+      aria-labelledby="unavailable-heading" hidden>
+      <h2 id="unavailable-heading" data-i18n="not_found" tabindex="-1"
+        class="section-title mb-3 text-xl">Эта партия недоступна.</h2>
+      <button id="unavailable-back" data-i18n="back"
+        class="board-action w-full text-sm font-semibold" type="button">Назад</button>
+    </section>
 
     <section id="game" class="board relative" hidden data-i18n-label="board" aria-label="Игровое поле">
       <p id="turn" class="sr-only" role="status"></p>
@@ -285412,7 +285421,8 @@ Princeton University and LICENSEE agrees to preserve same.
         goalWord: 'Target word', name: 'Name', setupHelp: 'Two different words of equal length, at least three characters each.',
         kanaHelp: 'Kana and romaji are accepted.', start: 'Start game', create: 'Create game',
         joinHeading: 'Join the game', join: 'Join', back: 'Back', board: 'Game board',
-        goal: 'Target', newGame: 'New game', letterLabel: 'Replacement character',
+        goal: 'Target', newGame: 'New game', leaveGame: 'Leave game',
+        game_ended: 'This game has already ended.', letterLabel: 'Replacement character',
         invite: 'Invite link', copy: 'Copy link', copied: 'Link copied.',
         copyFailed: 'Select and copy the link.', loading: 'Connecting…',
         waiting: 'Waiting for the second player…', reconnecting: 'Reconnecting…',
@@ -285440,7 +285450,7 @@ Princeton University and LICENSEE agrees to preserve same.
         invalid_name: 'Enter a name of 1–40 characters.',
         invalid_words: 'These words are not valid for this game.',
         no_path: 'The dictionary has no path for this pair with locked tiles.',
-        not_found: 'This game does not exist or has expired.',
+        not_found: 'This game is no longer available.',
         invalid_seat: 'Your seat could not be restored. Join the game again.',
         room_full: 'This game already has two players.',
         room_unavailable: 'This game could not be created. Try again.',
@@ -285458,7 +285468,8 @@ Princeton University and LICENSEE agrees to preserve same.
         goalWord: 'ゴールの単語', name: '名前', setupHelp: '同じ長さの異なる単語を2つ入力してください。どちらも3文字以上です。',
         kanaHelp: '仮名とローマ字を使えます。', start: 'ゲーム開始', create: '対戦を作成',
         joinHeading: '対戦に参加', join: '参加する', back: '戻る', board: 'ゲーム盤',
-        goal: 'ゴール', newGame: '新しいゲーム', letterLabel: '入れ替える文字',
+        goal: 'ゴール', newGame: '新しいゲーム', leaveGame: '対戦から退出',
+        game_ended: 'この対戦はすでに終了しています。', letterLabel: '入れ替える文字',
         invite: '招待リンク', copy: 'リンクをコピー', copied: 'リンクをコピーしました。',
         copyFailed: 'リンクを選択してコピーしてください。', loading: '接続中…',
         waiting: '対戦相手の参加を待っています…', reconnecting: '再接続中…',
@@ -285486,7 +285497,7 @@ Princeton University and LICENSEE agrees to preserve same.
         invalid_name: '名前を1〜40文字で入力してください。',
         invalid_words: 'この対戦では指定された単語を使えません。',
         no_path: 'タイルを固定するルールでは、辞書にこの組み合わせの経路がありません。',
-        not_found: '対戦が見つからないか、有効期限が切れています。',
+        not_found: 'この対戦には参加できません。',
         invalid_seat: '対戦に復帰できませんでした。参加し直してください。',
         room_full: 'この対戦にはすでに2人が参加しています。',
         room_unavailable: '対戦を作成できませんでした。もう一度お試しください。',
@@ -285504,7 +285515,8 @@ Princeton University and LICENSEE agrees to preserve same.
         goalWord: 'Конечное слово', name: 'Имя', setupHelp: 'Два разных слова одинаковой длины, от трёх знаков.',
         kanaHelp: 'Подойдут кана и ромадзи.', start: 'Начать игру', create: 'Создать игру',
         joinHeading: 'Вход в игру', join: 'Войти', back: 'Назад', board: 'Игровое поле',
-        goal: 'Цель', newGame: 'Новая игра', letterLabel: 'Новый знак',
+        goal: 'Цель', newGame: 'Новая игра', leaveGame: 'Покинуть игру',
+        game_ended: 'Эта партия уже завершилась.', letterLabel: 'Новый знак',
         invite: 'Ссылка для приглашения', copy: 'Скопировать ссылку', copied: 'Ссылка скопирована.',
         copyFailed: 'Выделите и скопируйте ссылку.', loading: 'Подключение…',
         waiting: 'Ждём второго игрока…', reconnecting: 'Восстанавливаем соединение…',
@@ -285532,7 +285544,7 @@ Princeton University and LICENSEE agrees to preserve same.
         invalid_name: 'Введите имя от 1 до 40 знаков.',
         invalid_words: 'Эти слова не подходят для игры.',
         no_path: 'В словаре нет цепочки для этой пары с правилом блокировки.',
-        not_found: 'Игра не найдена или срок приглашения истёк.',
+        not_found: 'Эта партия недоступна.',
         invalid_seat: 'Не удалось восстановить место. Войдите в игру заново.',
         room_full: 'В этой партии уже два игрока.',
         room_unavailable: 'Не удалось создать игру. Попробуйте ещё раз.',
@@ -286118,6 +286130,9 @@ Princeton University and LICENSEE agrees to preserve same.
     const guestName = document.getElementById('guest-name');
     const joinButton = document.getElementById('join-button');
     const joinBack = document.getElementById('join-back');
+    const unavailableGame = document.getElementById('unavailable-game');
+    const unavailableHeading = document.getElementById('unavailable-heading');
+    const unavailableBack = document.getElementById('unavailable-back');
     const onlineTurn = document.getElementById('online-turn');
     const invitePanel = document.getElementById('invite-panel');
     const inviteLink = document.getElementById('invite-link');
@@ -286188,9 +286203,21 @@ Princeton University and LICENSEE agrees to preserve same.
 
     const seatStorage = (id, token) => {
       const key = 'word-ladder-seat:' + id;
+      let persisted = false;
+      try {
+        if (token === undefined) {
+          const savedSeat = localStorage.getItem(key);
+          if (savedSeat) return savedSeat;
+        } else if (token) {
+          localStorage.setItem(key, token);
+          persisted = true;
+        } else localStorage.removeItem(key);
+      } catch {
+        // Use tab storage when persistent storage is unavailable.
+      }
       try {
         if (token === undefined) return sessionStorage.getItem(key);
-        if (token) sessionStorage.setItem(key, token);
+        if (token && !persisted) sessionStorage.setItem(key, token);
         else sessionStorage.removeItem(key);
       } catch {
         // Reconnection within this tab still works while it stays open.
@@ -286202,8 +286229,9 @@ Princeton University and LICENSEE agrees to preserve same.
       && !/[\x00-\x1f\x7f]/.test(name);
 
     const renderOnline = () => {
-      const { connected, error, pending, seat, state } = online;
-      const ownTurn = connected && !pending && state.phase === 'playing' && state.turn === seat;
+      const { connected, error, leaving, pending, seat, state } = online;
+      const ownTurn = connected && !leaving && !pending
+        && state.phase === 'playing' && state.turn === seat;
       const { players, winner } = state;
       let status;
       if (error) status = t(error);
@@ -286220,6 +286248,9 @@ Princeton University and LICENSEE agrees to preserve same.
       onlineTurn.textContent = status;
       onlineTurn.dataset.ownTurn = String(ownTurn);
       invitePanel.hidden = seat !== 0 || state.phase !== 'waiting' || !!error;
+      restart.textContent = t(!error && seat === 1 && state.phase === 'playing'
+        ? 'leaveGame' : 'newGame');
+      restart.disabled = !!leaving;
       paintBoard(state.word, state.changed, ownTurn);
       setNotice(ownTurn ? t('selectPrompt') : '');
     };
@@ -286235,7 +286266,11 @@ Princeton University and LICENSEE agrees to preserve same.
           openSocket(session);
         } catch (error) {
           if (online !== session) return;
-          if (['not_found', 'invalid_seat', 'unconfigured'].includes(error.message)) {
+          if (error.message === 'not_found') {
+            showUnavailable();
+            return;
+          }
+          if (['invalid_seat', 'unconfigured'].includes(error.message)) {
             session.error = error.message;
             renderOnline();
             return;
@@ -286268,9 +286303,17 @@ Princeton University and LICENSEE agrees to preserve same.
       });
       socket.addEventListener('close', ({ code }) => {
         if (online !== session || session.socket !== socket) return;
+        if (code === 4002 || (code === 4001 && session.leaving)) {
+          seatStorage(session.id, null);
+          leaveGame();
+          return;
+        }
+        if (code === 4001) {
+          showUnavailable();
+          return;
+        }
         session.connected = false;
         session.pending = false;
-        if (code === 4001) session.error = 'not_found';
         clearSelection();
         renderOnline();
         if (!session.error) reopenOnline(session);
@@ -286333,6 +286376,11 @@ Princeton University and LICENSEE agrees to preserve same.
         enterOnline(id, payload.token, result);
       } catch (error) {
         if (inviteId !== id) return;
+        if (error.message === 'not_found') {
+          showUnavailable();
+          return;
+        }
+        joinForm.hidden = false;
         if (payload.action === 'resume' && error.message === 'invalid_seat') {
           seatStorage(id, null);
           guestToken = null;
@@ -286344,23 +286392,41 @@ Princeton University and LICENSEE agrees to preserve same.
       }
     };
 
-    const initializeInvite = () => {
+    const initializeInvite = async () => {
       if (inviteId === null) return;
       setup.hidden = true;
-      joinForm.hidden = false;
       if (!GAME_UUID.test(inviteId)) {
+        joinForm.hidden = false;
         showJoinError('invalidLink');
         joinButton.disabled = true;
         return;
       }
 
       inviteId = inviteId.toLowerCase();
-      const token = seatStorage(inviteId);
-      if (token) submitJoin(inviteId, { action: 'resume', token });
-      else guestName.focus();
+      const id = inviteId;
+      const token = seatStorage(id);
+      if (token) {
+        submitJoin(id, { action: 'resume', token });
+        return;
+      }
+
+      try {
+        await roomRequest(id, { action: 'status' });
+      } catch (error) {
+        if (inviteId !== id) return;
+        if (error.message === 'not_found') {
+          showUnavailable();
+          return;
+        }
+        showJoinError(error.message);
+      }
+
+      if (inviteId !== id) return;
+      joinForm.hidden = false;
+      guestName.focus();
     };
 
-    const leaveGame = () => {
+    const leaveGame = (keepInvite = false) => {
       const session = online;
       online = null;
       if (session) {
@@ -286369,14 +286435,46 @@ Princeton University and LICENSEE agrees to preserve same.
       }
       clearTimeout(botTimer);
       clearSelection();
-      if (inviteId !== null) setInvite(null);
+      if (!keepInvite && inviteId !== null) setInvite(null);
       guestToken = null;
       onlineTurn.hidden = true;
       invitePanel.hidden = true;
+      restart.disabled = false;
+      restart.textContent = t('newGame');
       game.hidden = true;
       joinForm.hidden = true;
-      setup.hidden = false;
-      startWord.focus();
+      unavailableGame.hidden = !keepInvite;
+      setup.hidden = keepInvite;
+      if (keepInvite) unavailableHeading.focus();
+      else startWord.focus();
+    };
+
+    const showUnavailable = () => {
+      seatStorage(inviteId, null);
+      leaveGame(true);
+    };
+
+    const leaveOnline = async (session) => {
+      session.leaving = true;
+      clearSelection();
+      renderOnline();
+
+      try {
+        const action = session.seat === 0 ? 'end' : 'leave';
+        await roomRequest(session.id, { action, token: session.token });
+      } catch (error) {
+        if (online !== session) return;
+        if (error.message !== 'invalid_seat' && error.message !== 'not_found') {
+          session.leaving = false;
+          renderOnline();
+          setNotice(t(error.message), true);
+          return;
+        }
+      }
+
+      if (online !== session) return;
+      seatStorage(session.id, null);
+      leaveGame();
     };
 
     const sendOnlineMove = (position, letter) => {
@@ -286420,8 +286518,15 @@ Princeton University and LICENSEE agrees to preserve same.
       }
     });
     guestName.addEventListener('input', () => showJoinError(''));
-    joinBack.addEventListener('click', leaveGame);
-    restart.addEventListener('click', leaveGame);
+    joinBack.addEventListener('click', () => leaveGame());
+    unavailableBack.addEventListener('click', () => leaveGame());
+    restart.addEventListener('click', () => {
+      if (online && !online.error && (online.seat === 0 || online.state.phase === 'playing')) {
+        if (!online.leaving) leaveOnline(online);
+      } else {
+        leaveGame();
+      }
+    });
 
     copyInvite.addEventListener('click', async () => {
       try {
