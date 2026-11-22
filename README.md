@@ -23,6 +23,11 @@ romaji, with a choice of hiragana or katakana.
 To play remotely, select **Play by link**, enter your name and share the
 invite URL. Your opponent enters their name before joining.
 
+The guest can reopen the invite in the same browser to return to their seat.
+**Leave game** frees the seat so another player can continue from the
+current word using the same invite. When the host selects **New game**,
+the previous invite expires immediately.
+
 ## Host online games
 
 The site is a single HTML file deployed on GitHub Pages. The WebSocket
