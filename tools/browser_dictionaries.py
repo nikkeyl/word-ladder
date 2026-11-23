@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SERVER_PREFIX = 'export const DICTIONARIES = '
 ASSET_TAG = re.compile(r'(<script id="dictionary-assets" type="application/json">)[^<]*(</script>)')
 OFFLINE_MARKER = '<!-- Bundled dictionaries -->'
-OFFLINE_SCRIPTS = ('vendor/wanakana.min.js', 'rules-dialog.js', 'game.js')
+OFFLINE_SCRIPTS = ('vendor/wanakana.min.js', 'rules-dialog.js', 'script.js')
 
 
 def read_server_dictionaries():
