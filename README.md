@@ -13,14 +13,15 @@ by changing one character at a time. This project was made with AI.
 1. Pick two different words of the same length, with at least three characters each.
 2. Select a tile and type one replacement character. A tile locks as soon as it
    matches the target at that position.
-3. Build separate chains from the same starting word. In link games, both
-   players can move at the same time. On one device or against the bot,
-   take turns. Intermediate words must be in the dictionary, and each
-   word can be used once per board.
-4. Reach the target in fewer moves to win. After one player finishes,
-   the other can still match that move count. Equal move counts or two
-   dead ends are a draw. If only one player hits a dead end, the other
-   can continue.
+3. On one device, take turns changing the same word. Completing the target
+   wins the round. A dead end gives the round to your opponent. The other
+   player starts round two. One win each is a draw.
+4. Against the bot or by link, build separate chains from the same word.
+   The player who reaches the target in fewer moves wins. After one player
+   finishes, the other can still match that move count. Equal results or
+   two dead ends are a draw. Link games allow simultaneous moves.
+5. Intermediate words must be in the dictionary. Each word can be used once
+   per chain.
 
 Play together on one device, against the bot, or online. Choose **Play by link**
 to invite a friend. To play offline, unzip the download and open `word-ladder.html`
