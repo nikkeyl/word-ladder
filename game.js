@@ -98,7 +98,11 @@ const STRINGS = {
     rulesSetup: 'Choose two different words of the same length, at least three characters each.',
     rulesMove: 'Change one character per turn. Click a tile or use ← → to select it, then type the replacement. Intermediate words must be in the dictionary. You can use each word only once per round.',
     rulesLock: 'A character locks as soon as it matches the target in that position.',
-    rulesRound: 'Each player builds their own chain from the same starting word. Play at the same time in link games. Take turns on one device or against the bot. If your chain leads to a dead end, your board stops and the other player can continue.',
+    nextRound: 'Next round',
+    sharedRoundWinner: 'Round winner: {name}',
+    sharedDeadEnd: 'The word reached a dead end.',
+    rulesDuo: 'Two players on one device take turns changing the same word. The final move wins the round, and a dead end gives the round to the other player. The other player starts round two. One round each is a draw.',
+    rulesRound: 'Against the bot or by link, each player has their own board with the same starting word. Take turns against the bot or play simultaneously by link. A player whose chain reaches a dead end stops, and the opponent can continue.',
     rulesMatch: 'The player who reaches the target in fewer moves wins. After one player finishes, the other gets the same number of moves to match that result. Equal scores, or two dead ends, are a draw.',
     rulesJapanese: 'For Japanese, choose hiragana or katakana. Type kana directly or use romaji, for example re → れ / レ.',
     settings: 'Game settings',
@@ -195,7 +199,11 @@ const STRINGS = {
     rulesSetup: '同じ長さで3文字以上の、異なる単語を2つ選びます。',
     rulesMove: '1回の手番で1文字だけ入れ替えます。タイルを押すか、← →キーで選んでから、新しい文字を入力します。途中の単語は辞書にあるものに限ります。同じラウンドで同じ単語は使えません。',
     rulesLock: 'ゴールの単語と同じ位置に同じ文字がそろうと、そのタイルは固定されます。',
-    rulesRound: '同じ最初の単語から、各自の盤で別々に単語をつなげます。リンク対戦では同時にプレイでき、同じ端末やボットとの対戦では交互に手を打ちます。ゴールまでの道がなくなった人は終了し、相手は続けられます。',
+    nextRound: '次のラウンド',
+    sharedRoundWinner: 'ラウンドの勝者：{name}',
+    sharedDeadEnd: 'ゴールへの道がなくなりました。',
+    rulesDuo: '同じ端末で2人対戦するときは、交互に共通の単語を変えます。ゴールにたどり着いた人がラウンドの勝者です。行き詰まった場合は相手の勝ちです。第2ラウンドでは先攻を交代し、1勝ずつなら引き分けです。',
+    rulesRound: 'ボット戦とリンク対戦では、同じ最初の単語から別々の盤で進めます。ボット戦は交互に、リンク対戦は同時に進められます。行き詰まった人は終了し、相手は続けられます。',
     rulesMatch: 'より少ない手数でゴールした人が勝ちです。一方がゴールしたら、もう一方も同じ手数まで続けられます。同じ手数でゴールした場合や、両方が行き詰まった場合は引き分けです。',
     rulesJapanese: '日本語では、ひらがなかカタカナを選びます。仮名を直接入力することも、ローマ字で入力することもできます。例：re → れ / レ。',
     settings: 'ゲーム設定',
@@ -292,7 +300,11 @@ const STRINGS = {
     rulesSetup: 'Выберите два разных слова одинаковой длины, от трёх знаков.',
     rulesMove: 'За ход замените один знак. Выберите плитку нажатием или стрелками ← → и введите новый знак. Промежуточное слово должно быть в словаре. Повторять слова в одном раунде нельзя.',
     rulesLock: 'Знак, который совпадает с целью на своей позиции, сразу блокируется.',
-    rulesRound: 'У каждого своё поле с одним и тем же стартовым словом. По ссылке можно ходить одновременно. На одном устройстве и с ботом ходы идут по очереди. Если путь к цели закрыт, игрок выбывает из гонки, а соперник может продолжать.',
+    nextRound: 'Следующий раунд',
+    sharedRoundWinner: 'Раунд выиграл {name}',
+    sharedDeadEnd: 'Слово зашло в тупик.',
+    rulesDuo: 'На одном устройстве двое по очереди меняют общее слово. Кто собрал цель, выигрывает раунд. Ход в тупик отдаёт раунд сопернику. Во втором раунде начинает другой игрок. По одной победе дают ничью.',
+    rulesRound: 'С ботом и по ссылке у каждого своё поле с одинаковым стартовым словом. С ботом ходы идут по очереди, по ссылке можно ходить одновременно. Если путь к цели закрыт, игрок выбывает из гонки, а соперник может продолжать.',
     rulesMatch: 'Побеждает тот, кто собрал цель за меньшее число ходов. После первого финиша сопернику даётся столько же ходов, чтобы сравнять результат. Одинаковый результат или два тупика — ничья.',
     rulesJapanese: 'В японском выберите хирагану или катакану. Можно вводить знаки напрямую или печатать ромадзи, например re → れ / レ.',
     settings: 'Настройка партии',
@@ -437,6 +449,7 @@ const game = document.getElementById('game');
 const target = document.getElementById('target');
 const input = document.getElementById('letter');
 const restart = document.getElementById('restart');
+const nextRound = document.getElementById('next-round');
 const tiles = document.getElementById('tiles');
 const turn = document.getElementById('turn');
 const notice = document.getElementById('notice');
@@ -467,6 +480,8 @@ let round;
 let tileButtons = [];
 let localTurn;
 let localBoards;
+let sharedBoard;
+let sharedRoundWinners;
 let localWinner;
 let mode;
 let botDetoured;
@@ -647,13 +662,13 @@ const getPlayer = (seat = localTurn) => {
 
 const isBotTurn = () => mode === 'bot' && localTurn === 1;
 
-const showMatchScore = (winners, players) => {
+const showMatchScore = (winners, players, roundNumber) => {
   matchScore.hidden = !winners || players.length < 2;
   if (matchScore.hidden) return;
 
   const a = winners.filter((winner) => winner === 0).length;
   matchScore.textContent = t('matchScore', {
-    round: Math.min(winners.length + 1, 2),
+    round: roundNumber ?? Math.min(winners.length + 1, 2),
     first: players[0],
     a,
     b: winners.length - a,
@@ -698,30 +713,54 @@ const renderRace = (boards, players, activeRow, canPlay) => {
   paintBoard(word, changed, canPlay);
 };
 
-const render = (previewSeat = null) => {
+const renderBotRace = () => {
   const finished = localTurn === null;
   const botPlaying = !finished && isBotTurn();
-  const activeRow = mode === 'bot' ? 0 : previewSeat ?? localTurn ?? localWinner ?? 0;
   const boards = localBoards.map((board) => ({ ...board, moves: board.used.size - 1 }));
-  const canPlay = !finished && !botPlaying && previewSeat === null;
-  renderRace(boards, [getPlayer(0), getPlayer(1)], activeRow, canPlay);
+  renderRace(boards, [getPlayer(0), getPlayer(1)], 0, !finished && !botPlaying);
+  onlineTurn.hidden = true;
   turn.textContent = '';
-  onlineTurn.hidden = finished || mode !== 'duo';
-  if (!onlineTurn.hidden) {
-    onlineTurn.textContent = t('theirTurn', { name: getPlayer(activeRow) });
-    onlineTurn.dataset.ownTurn = 'false';
-  }
 
   if (finished) {
     if (localWinner === null) setNotice(t('draw'));
-    else if (mode === 'bot' && localWinner === 0) setNotice(t('won'));
+    else if (localWinner === 0) setNotice(t('won'));
     else setNotice(t('winner', { name: getPlayer(localWinner) }));
   } else if (botPlaying) {
     setNotice(t('botThinking'));
   } else {
-    if (mode === 'bot') turn.textContent = t('yourTurn');
+    turn.textContent = t('yourTurn');
     setNotice(t('selectPrompt'));
   }
+};
+
+const renderSharedBoard = () => {
+  const { changed, status, word } = sharedBoard;
+  const canPlay = status === 'playing';
+  const roundsFinished = sharedRoundWinners.length;
+  const players = [getPlayer(0), getPlayer(1)];
+  showMatchScore(sharedRoundWinners, players, roundsFinished + Number(canPlay));
+  raceProgress.hidden = true;
+  nextRound.hidden = canPlay || roundsFinished !== 1;
+  onlineTurn.hidden = false;
+  onlineTurn.dataset.ownTurn = 'false';
+  input.disabled = !canPlay;
+  paintBoard(word, changed, canPlay);
+
+  if (canPlay) {
+    onlineTurn.textContent = t('theirTurn', { name: getPlayer() });
+    setNotice(t('selectPrompt'));
+    return;
+  }
+
+  const lastWinner = sharedRoundWinners.at(-1);
+  onlineTurn.textContent = t('sharedRoundWinner', { name: players[lastWinner] });
+  const messages = [];
+  if (status === 'blocked') messages.push(t('sharedDeadEnd'));
+  if (roundsFinished === 2) {
+    const winner = sharedRoundWinners[0];
+    messages.push(winner === lastWinner ? t('winner', { name: players[winner] }) : t('draw'));
+  }
+  setNotice(messages.join(' '));
 };
 
 const focusAfterMove = (changed) => {
@@ -731,13 +770,16 @@ const focusAfterMove = (changed) => {
   const availableTile = previousTile && !previousTile.disabled
     ? previousTile
     : tileButtons.find((tile) => !tile.disabled);
-  const focusTarget = input.disabled ? restart : availableTile;
+  const nextAction = nextRound.hidden ? restart : nextRound;
+  const focusTarget = input.disabled ? nextAction : availableTile;
   focusTarget?.focus();
 };
 
+const activeLocalBoard = () => mode === 'duo' ? sharedBoard : localBoards[localTurn];
+
 const play = (word, changed) => {
   const seat = localTurn;
-  const board = localBoards[seat];
+  const board = activeLocalBoard();
   board.word = word;
   board.changed = changed;
   board.used.add(word);
@@ -749,25 +791,23 @@ const play = (word, changed) => {
     if (!board.next) board.status = 'blocked';
   }
 
-  const result = advanceRace(localBoards, seat);
-  localTurn = result.turn;
-  localWinner = result.winner;
   clearSelection();
-
-  if (mode === 'duo' && localTurn !== seat) {
-    render(seat);
-    if (localTurn !== null) {
-      moveTimer = setTimeout(() => {
-        render();
-        focusAfterMove(changed);
-      }, LOCAL_MOVE_DELAY_MS);
+  if (mode === 'duo') {
+    if (board.status === 'playing') {
+      localTurn = 1 - seat;
     } else {
-      focusAfterMove(changed);
+      sharedRoundWinners.push(board.status === 'solved' ? seat : 1 - seat);
     }
+
+    renderSharedBoard();
+    focusAfterMove(changed);
     return;
   }
 
-  render();
+  const result = advanceRace(localBoards, seat);
+  localTurn = result.turn;
+  localWinner = result.winner;
+  renderBotRace();
   if (isBotTurn()) {
     moveTimer = setTimeout(() => {
       const bot = localBoards[1];
@@ -795,19 +835,42 @@ const play = (word, changed) => {
   }
 };
 
+const createLocalBoard = (firstStep) => ({
+  changed: -1,
+  next: firstStep,
+  status: 'playing',
+  used: new Set([round.start]),
+  word: round.start,
+});
+
 const reset = (firstStep) => {
   clearTimeout(moveTimer);
   clearSelection();
   mode = document.querySelector('[name="mode"]:checked').value;
-  localBoards = [0, 1].map(() => ({
-    changed: -1, next: firstStep, status: 'playing', used: new Set([round.start]),
-    word: round.start,
-  }));
   localTurn = 0;
+  nextRound.hidden = true;
+
+  if (mode === 'duo') {
+    sharedBoard = createLocalBoard(firstStep);
+    sharedRoundWinners = [];
+    renderSharedBoard();
+    return;
+  }
+
+  localBoards = [createLocalBoard(firstStep), createLocalBoard(firstStep)];
   localWinner = null;
   botDetoured = false;
-  render();
+  renderBotRace();
 };
+
+nextRound.addEventListener('click', () => {
+  if (mode !== 'duo' || nextRound.hidden) return;
+
+  sharedBoard = createLocalBoard(findNextStep(round.start, round.goal, round.patterns, []));
+  localTurn = 1;
+  renderSharedBoard();
+  tiles.querySelector(':enabled')?.focus();
+});
 
 const enterLetter = (commitRomaji = false) => {
   if (selected === null || tileButtons[selected].disabled) return;
@@ -829,7 +892,7 @@ const enterLetter = (commitRomaji = false) => {
     return;
   }
 
-  const current = mode === 'online' ? online.state.word : localBoards[localTurn].word;
+  const current = mode === 'online' ? online.state.word : activeLocalBoard().word;
   const word = current.slice(0, selected) + letter + current.slice(selected + 1);
   input.value = '';
 
@@ -843,7 +906,7 @@ const enterLetter = (commitRomaji = false) => {
   } else if (!round.words.has(word)) {
     const printed = printWord(word, round.language, round.script);
     setNotice(t('unknownQuoted', { word: printed }), true);
-  } else if (localBoards[localTurn].used.has(word)) {
+  } else if (activeLocalBoard().used.has(word)) {
     setNotice(t('repeated_word'), true);
   } else {
     play(word, selected);
@@ -1462,6 +1525,7 @@ const leaveGame = (keepInvite = false) => {
   if (!keepInvite && inviteId !== null) setInvite(null);
   guestToken = null;
   onlineTurn.hidden = true;
+  nextRound.hidden = true;
   invitePanel.hidden = true;
   restart.disabled = false;
   restart.textContent = t('newGame');
