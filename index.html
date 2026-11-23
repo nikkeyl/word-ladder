@@ -1660,7 +1660,6 @@ Princeton University and LICENSEE agrees to preserve same.
     const target = document.getElementById('target');
     const input = document.getElementById('letter');
     const restart = document.getElementById('restart');
-    const restartClasses = restart.className;
     const tiles = document.getElementById('tiles');
     const turn = document.getElementById('turn');
     const notice = document.getElementById('notice');
@@ -2540,7 +2539,6 @@ Princeton University and LICENSEE agrees to preserve same.
       invitePanel.hidden = seat !== 0 || state.phase !== 'waiting' || !!error;
       const canLeave = !error && seat === 1 && state.phase === 'playing';
       restart.textContent = t(canLeave ? 'leaveGame' : 'newGame');
-      restart.className = canLeave ? 'board-action mt-2 w-full text-sm font-semibold' : restartClasses;
       restart.disabled = !!leaving;
       if (!ownTurn || selected === null) setNotice(ownTurn ? t('selectPrompt') : '');
     };
@@ -2741,7 +2739,6 @@ Princeton University and LICENSEE agrees to preserve same.
       invitePanel.hidden = true;
       restart.disabled = false;
       restart.textContent = t('newGame');
-      restart.className = restartClasses;
       game.hidden = true;
       joinForm.hidden = true;
       unavailableGame.hidden = !keepInvite;
