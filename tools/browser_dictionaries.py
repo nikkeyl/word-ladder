@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SERVER_PREFIX = 'export const DICTIONARIES = '
 ASSET_TAG = re.compile(r'(<script id="dictionary-assets" type="application/json">)[^<]*(</script>)')
 OFFLINE_MARKER = '<!-- Bundled dictionaries -->'
+OFFLINE_SCRIPTS = ('vendor/wanakana.min.js', 'rules-dialog.js', 'game.js')
 
 
 def read_server_dictionaries():
@@ -51,6 +52,14 @@ def write_browser_dictionaries(grouped):
 
     index.write_text(html, encoding='utf-8')
     standalone = html.replace(OFFLINE_MARKER, '\n  '.join(embedded))
+    for path in OFFLINE_SCRIPTS:
+        tag = f'<script defer src="./{path}"></script>'
+        if standalone.count(tag) != 1:
+            raise ValueError(f'Expected one script tag for {path}.')
+
+        script = (ROOT / path).read_text(encoding='utf-8')
+        standalone = standalone.replace(tag, f'<script>\n{script}</script>')
+
     offline_html = ZipInfo('word-ladder.html')
     with ZipFile(ROOT / 'word-ladder-offline.zip', 'w') as archive:
         archive.writestr(offline_html, standalone, compress_type=ZIP_DEFLATED, compresslevel=9)
