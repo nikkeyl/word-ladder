@@ -11,6 +11,18 @@ const MAX_NAME_LENGTH = 40;
 const GAME_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WS_PROTOCOL = 'word-ladder';
 
+const QWERTY_KEYS = '`qwertyuiop[]asdfghjkl;\'zxcvbnm,.';
+const JCUKEN_KEYS = 'ёйцукенгшщзхъфывапролджэячсмитьбю';
+const SHIFTED_QWERTY_KEYS = {
+  '"': 'Э',
+  ':': 'Ж',
+  '<': 'Б',
+  '>': 'Ю',
+  '{': 'Х',
+  '}': 'Ъ',
+  '~': 'Ё',
+};
+
 const DICTIONARY_TIMEOUT_MS = 12000;
 const LOCAL_MOVE_DELAY_MS = 520;
 const MAX_RECONNECT_DELAY_MS = 5000;
@@ -614,8 +626,30 @@ const bindSelect = (field) => {
 const selectLanguage = bindSelect(languagePicker);
 bindSelect(scriptPicker);
 
+const convertKeyboardLayout = (value, language) => {
+  if (language === 'ja') return value;
+
+  const russian = language === 'ru';
+  const sourceKeys = russian ? QWERTY_KEYS : JCUKEN_KEYS;
+  const targetKeys = russian ? JCUKEN_KEYS : QWERTY_KEYS;
+
+  return Array.from(value, (character) => {
+    if (russian && Object.hasOwn(SHIFTED_QWERTY_KEYS, character)) {
+      return SHIFTED_QWERTY_KEYS[character];
+    }
+
+    const lower = character.toLowerCase();
+    const mapped = targetKeys[sourceKeys.indexOf(lower)];
+    if (mapped === undefined) return character;
+
+    return character === lower ? mapped : mapped.toUpperCase();
+  }).join('');
+};
+
 const normalizeWord = (word, language, composingRomaji = false) => {
-  if (language !== 'ja') return word.normalize('NFC').toLowerCase();
+  if (language !== 'ja') {
+    return convertKeyboardLayout(word.normalize('NFC'), language).toLowerCase();
+  }
 
   const normalized = word.normalize('NFKC').toLowerCase();
   const kana = wanakana.toHiragana(normalized, {
@@ -1088,6 +1122,23 @@ const loadDictionary = async (language, length) => {
   dictionaryCache.set(url, source);
   return source;
 };
+
+const convertWordField = (event) => {
+  if (event.isComposing) return;
+
+  const field = event.currentTarget;
+  const value = convertKeyboardLayout(field.value, languagePicker.value);
+  if (value === field.value) return;
+
+  const { selectionDirection, selectionEnd, selectionStart } = field;
+  field.value = value;
+  field.setSelectionRange(selectionStart, selectionEnd, selectionDirection);
+};
+
+for (const field of [startWord, goalWord]) {
+  field.addEventListener('input', convertWordField);
+  field.addEventListener('compositionend', convertWordField);
+}
 
 setup.addEventListener('input', () => showSetupError(''));
 setup.addEventListener('submit', async (event) => {
